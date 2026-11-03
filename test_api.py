@@ -2,13 +2,20 @@ import os, sqlite3, tempfile
 os.environ["DB_PATH"] = os.path.join(tempfile.mkdtemp(), "t.db")
 os.environ["ADMIN_PASSWORD"] = "pw"
 from fastapi.testclient import TestClient
-from app import app, DB
+from app import app, DB, database_path
 
 cl, H = TestClient(app), {"X-Admin-Password": "pw"}
 D1, D2, D3 = "2026-11-03", "2026-11-04", "2026-11-05"
 def post(p, j=None): return cl.post("/api/" + p, json=j, headers=H)
 def sched(d): return cl.get("/api/schedule/" + d, headers=H).json()["matches"]
 def team(d, code): return [p["name"] for m in sched(d) if m["code"] == code for p in m["people"]]
+
+
+def test_vercel_defaults_sqlite_to_writable_tmp(monkeypatch):
+    monkeypatch.delenv("DB_PATH", raising=False)
+    monkeypatch.setenv("VERCEL", "1")
+    assert database_path() == "/tmp/smartmatch.db"
+
 
 def test_flow():
     for n in "abcd": assert post("people", {"name": n, "dept": "DECLARATION"}).status_code == 200

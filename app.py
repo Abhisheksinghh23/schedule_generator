@@ -8,7 +8,11 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import engine as E
 
-DB = os.environ.get("DB_PATH", "smartmatch.db")
+def database_path():
+    return os.environ.get("DB_PATH") or ("/tmp/smartmatch.db" if os.environ.get("VERCEL") else "smartmatch.db")
+
+
+DB = database_path()
 PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")
 SH, SM = map(int, os.environ.get("DAY_START", "09:00").split(":"))
 HERE = os.path.dirname(os.path.abspath(__file__))
