@@ -9,7 +9,12 @@ from pydantic import BaseModel
 import engine as E
 
 def database_path():
-    return os.environ.get("DB_PATH") or ("/tmp/smartmatch.db" if os.environ.get("VERCEL") else "smartmatch.db")
+    configured = os.environ.get("DB_PATH")
+    if configured:
+        return configured
+    if os.environ.get("VERCEL") or os.environ.get("RENDER"):
+        return "/tmp/smartmatch.db"
+    return "smartmatch.db"
 
 
 DB = database_path()

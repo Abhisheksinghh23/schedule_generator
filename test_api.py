@@ -17,10 +17,16 @@ def test_homepage_serves_index():
     assert "Smart Match Allocation" in response.text
 
 
-def test_vercel_defaults_sqlite_to_writable_tmp(monkeypatch):
+def test_hosted_platforms_default_sqlite_to_writable_tmp(monkeypatch):
     monkeypatch.delenv("DB_PATH", raising=False)
     monkeypatch.setenv("VERCEL", "1")
     assert database_path() == "/tmp/smartmatch.db"
+    monkeypatch.delenv("VERCEL")
+    monkeypatch.setenv("RENDER", "true")
+    assert database_path() == "/tmp/smartmatch.db"
+    monkeypatch.delenv("RENDER")
+    monkeypatch.setenv("DB_PATH", "/var/data/smartmatch.db")
+    assert database_path() == "/var/data/smartmatch.db"
 
 
 def test_flow():
