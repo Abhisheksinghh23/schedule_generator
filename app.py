@@ -528,4 +528,4 @@ def history(_=Depends(admin)):
                 "transfers": [dict(r) for r in c.execute("SELECT * FROM transfers ORDER BY id DESC LIMIT 50")]}
 
 
-app.mount("/", StaticFiles(directory=os.path.join(HERE, "static"), html=True), name="static")
+app.mount("/", StaticFiles(directory="static", html=True), name="static")
