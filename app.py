@@ -128,16 +128,18 @@ def prev_releases(c, day, dept):
     return pd, {p: E.release_for(p, asg, ms, ss) for p in {p for v in asg.values() for p in v}}
 
 def rest_info(c, pid, day):
-    """(last blocked day after an earlier Test, dates of booked matches in the next 5 days)."""
+    """(last blocked day after an assigned Test, dates of overlapping booked matches)."""
     ru = None
-    for r in c.execute("SELECT m.day, m.comp FROM assign a JOIN matches m ON m.id=a.match_id WHERE a.person_id=? "
-                       "AND m.fmt='TEST' AND m.status!='cancelled' AND m.day<?", (pid, day)):
-        e = date.fromisoformat(r["day"]) + timedelta(days=E.REST_DAYS.get(r["comp"] or "INTERNATIONAL", 5))
+    for r in c.execute("SELECT m.day, m.comp, m.done FROM assign a JOIN matches m ON m.id=a.match_id WHERE a.person_id=? "
+                       "AND m.fmt='TEST' AND m.status!='cancelled' AND m.day<=?", (pid, day)):
+        done = datetime.fromisoformat(r["done"]) if r["done"] else None
+        e = E.rest_until_after_test(date.fromisoformat(r["day"]), r["comp"], done)
         ru = max(ru, e) if ru else e
-    hi = (date.fromisoformat(day) + timedelta(days=5)).isoformat()
+    max_window = max(E.TEST_DAYS[c] - 1 + E.REST_DAYS[c] for c in E.TEST_DAYS)
+    hi = (date.fromisoformat(day) + timedelta(days=max_window)).isoformat()
     fut = [date.fromisoformat(r[0]) for r in c.execute(
         "SELECT DISTINCT m.day FROM assign a JOIN matches m ON m.id=a.match_id WHERE a.person_id=? "
-        "AND m.status!='cancelled' AND m.day>? AND m.day<=?", (pid, day, hi))]
+        "AND m.status!='cancelled' AND m.day>=? AND m.day<=?", (pid, day, hi))]
     return ru, fut
 
 def people_objs(c, day, dept, rel):

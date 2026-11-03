@@ -63,18 +63,21 @@ def test_test_rest_days_ranji_and_international():
     day("2026-11-10", "T1", "TEST", "RANJI"); post("generate/2026-11-10")
     first = team("2026-11-10", "T1")
     assert len(first) == 2
+    test_id = next(m["id"] for m in sched("2026-11-10") if m["code"] == "T1")
+    assert post("close/2026-11-10", {"matches": [{"id": test_id, "status": "completed",
+                                                    "done": "2026-11-13T17:00"}]}).status_code == 200
     # Block everyone else so only the resting pair could fill the slots
     others = [r["id"] for r in cl.get("/api/people", headers=H).json() if r["name"] not in first]
     for pid in others: cl.post(f"/api/people/{pid}/active?active=false", headers=H)
-    day("2026-11-14", "R4", "T20"); post("generate/2026-11-14")      # day +4: still resting
-    assert team("2026-11-14", "R4") == []
-    day("2026-11-15", "R5", "T20"); post("generate/2026-11-15")      # day +5: free again
-    assert sorted(team("2026-11-15", "R5")) == sorted(first)
-    # manual assignment inside the window is rejected
-    ids = {m["code"]: m["id"] for m in sched("2026-11-14")}
+    day("2026-11-17", "R7", "T20"); post("generate/2026-11-17")      # final Ranji recovery day
+    assert team("2026-11-17", "R7") == []
+    day("2026-11-18", "R8", "T20"); post("generate/2026-11-18")      # free after 4 recovery days
+    assert sorted(team("2026-11-18", "R8")) == sorted(first)
+    # Manual assignment is rejected through the final recovery day.
+    ids = {m["code"]: m["id"] for m in sched("2026-11-17")}
     pid = [r["id"] for r in cl.get("/api/people", headers=H).json() if r["name"] == first[0]][0]
     cl.post(f"/api/people/{pid}/active?active=true", headers=H)
-    r = post("assign", {"match_id": ids["R4"], "person_id": pid})
+    r = post("assign", {"match_id": ids["R7"], "person_id": pid})
     assert r.status_code == 400 and "resting" in r.json()["detail"]
 
 

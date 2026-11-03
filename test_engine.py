@@ -21,7 +21,7 @@ def test_no_cross_department():
     r = allocate([Match("1", "DECLARATION", "T20")], ps)
     assert "f1" not in r.assignments["1"]
 
-@pytest.mark.parametrize("fmt,usual", [("T20", 2), ("ODI", 2), ("TEST", 2)])
+@pytest.mark.parametrize("fmt,usual", [("T20", 2), ("ODI", 2)])
 def test_usual_load_first_then_overflow_beyond_old_cap(fmt, usual):
     ps = [P("a", rel=t(9)), P("b", rel=t(10))]   # only 2 people
     ms = [Match(str(i), "DECLARATION", fmt, i) for i in range(usual + 2)]
@@ -113,12 +113,34 @@ def test_rest_after_test_blocks_and_future_window():
     from datetime import timedelta
     d = date(2026, 11, 10)
     def m(day, fmt="T20", comp=None): return Match("1", "DECLARATION", fmt, comp=comp, day=day)
-    p = P("a"); p.rest_until = d + timedelta(days=4)             # Ranji Test on d
-    assert allocate([m(d + timedelta(days=4))], [p]).unfilled      # day 4: blocked
-    assert not allocate([m(d + timedelta(days=5))], [p, P("b")]).unfilled   # day 5: free
+    p = P("a"); p.rest_until = d + timedelta(days=7)             # 4-day Test + 4 recovery days
+    assert allocate([m(d + timedelta(days=7))], [p]).unfilled      # last recovery day: blocked
+    assert not allocate([m(d + timedelta(days=8))], [p, P("b")]).unfilled   # next day: free
     # giving a Test to someone already booked inside the window is refused
     q = P("q"); q.future = [d + timedelta(days=3)]
     assert allocate([m(d, "TEST", "RANJI")], [q]).unfilled
-    q.future = [d + timedelta(days=5)]                           # just outside Ranji window
+    q.future = [d + timedelta(days=8)]                           # just outside Ranji window
     assert allocate([m(d, "TEST", "RANJI")], [q, P("r")]).complete
     assert allocate([m(d, "TEST", "INTERNATIONAL")], [q]).unfilled   # inside 5-day window
+    q.future = [d + timedelta(days=10)]
+    assert allocate([m(d, "TEST", "INTERNATIONAL")], [q, P("r")]).complete
+
+
+def test_test_duration_and_rest_start_after_final_match_day():
+    from datetime import timedelta
+    from engine import rest_until_after_test
+    d = date(2026, 11, 10)
+    assert rest_until_after_test(d, "RANJI") == d + timedelta(days=7)
+    assert rest_until_after_test(d, "INTERNATIONAL") == d + timedelta(days=9)
+    ranji = Match("r", "DECLARATION", "TEST", comp="RANJI", day=d)
+    international = Match("i", "DECLARATION", "TEST", comp="INTERNATIONAL", day=d)
+    assert release_for("a", {"r": ["a"]}, {"r": ranji}, t(9)) == t(9) + timedelta(days=4)
+    assert release_for("a", {"i": ["a"]}, {"i": international}, t(9)) == t(9) + timedelta(days=5)
+
+
+def test_allocate_does_not_assign_test_staff_to_other_matches_same_day():
+    d = date(2026, 11, 10)
+    test = Match("test", "DECLARATION", "TEST", order=2, comp="RANJI", day=d)
+    other = Match("other", "DECLARATION", "T20", order=1, day=d)
+    result = allocate([other, test], [P("a"), P("b"), P("c"), P("d")])
+    assert set(result.assignments["test"]).isdisjoint(result.assignments["other"])

@@ -13,11 +13,13 @@ FastAPI + SQLite + single-page web UI (works on desktop, tablet, Android browser
   beyond it if a slot would otherwise stay empty (warning lists who was reused).
 - Admin override: manually adding a person past the default of 2 asks for confirmation ("Assign anyway?"); confirm to
   assign any number of matches in any format. Logged in the audit log as a limit override.
-- Test rest rule: after a Test (match day = day 0) the person gets no other match for 4 days (Ranji)
-  or 5 days (International). Enforced forward (blocked days after a Test) and backward (a Test can't be given
-  to someone already booked inside its rest window). Cancelled Tests don't block. Tag each Test Ranji or International
-  (Matches tab, or per line: `MATCH 103, TEST, RANJI`).
-- Match length: T20 4h, ODI 8h, Test 8h. Matches run back to back from the day start
+- Test availability: Ranji Tests occupy 4 calendar days and International Tests 5. The assigned people are
+  unavailable for 4 or 5 recovery days, respectively, after the final Test day. Enter the actual completion
+  date and time in Close Day when known; otherwise the schedule estimates the final day from the Test type.
+  The rule is enforced for generated and manual assignments, including matches booked inside a future Test's
+  duration or recovery window. Cancelled Tests don't block. Tag each Test Ranji or International (Matches tab,
+  or per line: `MATCH 103, TEST, RANJI`).
+- Match length: T20 4h and ODI 8h. Matches run back to back from the day start
   (env `DAY_START`, default 09:00). Release time = end of last match; actual completion
   times entered in Close Day override the estimate; cancelled matches are ignored.
 - Next day priority: earliest previous-day release first. Ties: fewer assignments today,
@@ -29,5 +31,5 @@ FastAPI + SQLite + single-page web UI (works on desktop, tablet, Android browser
 Pick date → Matches tab (paste lines; optional End date adds the same matches to every date from start to end, blank = start date only) → Schedule → Generate → fix manually → Lock all →
 Close Day tab (enter completion times) → Close day. Next day's Generate uses that data.
 
-## Not included (see chat)
-CSV/Excel import/export, reports/analytics, undo/version restore, PostgreSQL/React/Alembic, Playwright tests.
+## Not included
+CSV/Excel import/export, reports/analytics, PostgreSQL migration, React/Alembic, Playwright tests.
