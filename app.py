@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from datetime import date, datetime, time, timedelta
 from typing import Optional
 from fastapi import Depends, FastAPI, Header, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import engine as E
 
@@ -186,9 +186,6 @@ class Un(BaseModel): match_id: int; person_id: str
 class Transfer(BaseModel): person_ids: list[str]; new_dept: str; confirm: bool = False
 class Done(BaseModel): id: int; status: str; done: Optional[str] = None
 class Close(BaseModel): matches: list[Done]
-
-@app.get("/")
-def index(): return FileResponse(os.path.join(HERE, "static", "index.html"))
 
 @app.get("/api/people")
 def people(_=Depends(admin)):
@@ -529,3 +526,6 @@ def history(_=Depends(admin)):
     with db() as c:
         return {"audit": [dict(r) for r in c.execute("SELECT * FROM audit ORDER BY id DESC LIMIT 100")],
                 "transfers": [dict(r) for r in c.execute("SELECT * FROM transfers ORDER BY id DESC LIMIT 50")]}
+
+
+app.mount("/", StaticFiles(directory=os.path.join(HERE, "static"), html=True), name="static")

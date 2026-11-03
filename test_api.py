@@ -11,6 +11,12 @@ def sched(d): return cl.get("/api/schedule/" + d, headers=H).json()["matches"]
 def team(d, code): return [p["name"] for m in sched(d) if m["code"] == code for p in m["people"]]
 
 
+def test_homepage_serves_index():
+    response = cl.get("/")
+    assert response.status_code == 200
+    assert "Smart Match Allocation" in response.text
+
+
 def test_vercel_defaults_sqlite_to_writable_tmp(monkeypatch):
     monkeypatch.delenv("DB_PATH", raising=False)
     monkeypatch.setenv("VERCEL", "1")
