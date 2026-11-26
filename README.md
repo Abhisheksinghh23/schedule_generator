@@ -28,7 +28,8 @@ FastAPI + SQLite/PostgreSQL + single-page web UI (works on desktop, tablet, Andr
 
 ## Rules implemented
 - Declaration 2 people / Fancy 5 people per match; departments fully isolated.
-- Daily maximum per person: 2 T20s, 1 ODI or 1 Test, counted per format. Auto-generate never exceeds it; if not
+- Daily maximum per person: either 2 T20s, or 1 ODI, or 1 Test. Formats are never mixed in a day (manual
+  assignment and override included). Auto-generate never exceeds it; if not
   enough eligible people remain, the slot is left unfilled and reported.
 - Admin override: manually adding a person past the maximum asks for confirmation ("Assign anyway?"); confirm to
   allow a second ODI or Test. Logged in the audit log as a limit override. The absolute ceiling is 2 per format
