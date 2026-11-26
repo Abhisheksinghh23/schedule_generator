@@ -73,7 +73,7 @@ def ineligible_reason(p, m, load, limits=True):
     if limits and used.get(m.fmt, 0) >= LIMITS[m.fmt]:
         return f"daily {m.fmt} limit ({LIMITS[m.fmt]}) reached"
     if m.day and p.rest_until and m.day <= p.rest_until:
-        return f"resting after a Test until {p.rest_until}"
+        return f"booked on a Test through {p.rest_until} (no recovery days)"
     if m.fmt == "TEST" and m.day:
         end = rest_until_after_test(m.day, m.comp)
         if any(m.day <= f <= end for f in p.future):
