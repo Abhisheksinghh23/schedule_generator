@@ -80,8 +80,7 @@ def test_manual_validation():
     validate_manual(a, ms["2"], asg, ms)          # 2nd T20: within cap of 2
     asg3 = {"1": ["a"], "2": ["a"], "3": []}
     ms3 = {**ms, "3": Match("3", "DECLARATION", "T20")}
-    with pytest.raises(ValueError, match="limit"): validate_manual(a, ms3["3"], asg3, ms3)
-    validate_manual(a, ms3["3"], asg3, ms3, override=True)   # admin override: a 3rd
+    with pytest.raises(ValueError, match="maximum"): validate_manual(a, ms3["3"], asg3, ms3, override=True)   # 3rd T20 blocked even with override
     with pytest.raises(ValueError, match="duplicate"): validate_manual(a, ms["1"], asg, ms)
     with pytest.raises(ValueError, match="locked"): validate_manual(b, ms["1"], asg, ms, {"1"})
     with pytest.raises(ValueError, match="department"): validate_manual(P("f", "FANCY"), ms["2"], asg, ms)
@@ -152,3 +151,12 @@ def test_odi_and_test_cap_one_manual_override_to_two():
         asg = {"1": ["a"], "2": []}
         with pytest.raises(ValueError, match="limit"): validate_manual(a, ms["2"], asg, ms)
         validate_manual(a, ms["2"], asg, ms, override=True)   # admin makes it two
+
+
+def test_override_ceiling_is_two():
+    a = P("a")
+    for fmt in ("ODI", "TEST"):
+        ms = {str(i): Match(str(i), "DECLARATION", fmt) for i in (1, 2, 3)}
+        asg = {"1": ["a"], "2": ["a"], "3": []}
+        with pytest.raises(ValueError, match="maximum"): validate_manual(a, ms["3"], asg, ms, override=True)
+        with pytest.raises(ValueError, match="maximum"): validate_manual(a, ms["3"], asg, ms)
