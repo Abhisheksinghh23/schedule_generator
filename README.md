@@ -31,7 +31,8 @@ FastAPI + SQLite/PostgreSQL + single-page web UI (works on desktop, tablet, Andr
 - Daily maximum per person: 2 T20s, 1 ODI or 1 Test, counted per format. Auto-generate never exceeds it; if not
   enough eligible people remain, the slot is left unfilled and reported.
 - Admin override: manually adding a person past the maximum asks for confirmation ("Assign anyway?"); confirm to
-  allow it (for example a second ODI or Test). Logged in the audit log as a limit override.
+  allow a second ODI or Test. Logged in the audit log as a limit override. The absolute ceiling is 2 per format
+  per day: a third is refused even with override (T20 stays at 2).
 - Test availability: Ranji Tests occupy 4 calendar days and International Tests 5, with no extra recovery days.
   The assigned people are unavailable through the final Test day and free the day after. Enter the actual completion
   date and time in Close Day when known; otherwise the schedule estimates the final day from the Test type.
