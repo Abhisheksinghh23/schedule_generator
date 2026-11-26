@@ -242,13 +242,27 @@ def test_cf_connecting_ip_separates_clients():
         A._auth_fails.clear()
 
 
-def test_second_same_day_test_is_refused_even_with_override():
-    # A Test occupies the person for its whole 4/5-day span, so a second Test overlaps it.
+def test_second_same_day_test_needs_override_and_third_is_blocked():
+    # Admin may stack a second Test starting the same day (override, max 2); never a third, never automatic.
     d = "2027-08-02"
     post("people", {"name": "TX1", "dept": "DECLARATION"})
-    post("matches/bulk", {"day": d, "dept": "DECLARATION", "fmt": "TEST", "comp": "RANJI", "text": "TA\nTB"})
+    post("matches/bulk", {"day": d, "dept": "DECLARATION", "fmt": "TEST", "comp": "RANJI", "text": "TA\nTB\nTC"})
     p = pid("TX1")
     assert post("assign", {"match_id": mid(d, "TA"), "person_id": p}).status_code == 200
-    for ov in (False, True):
-        r = post("assign", {"match_id": mid(d, "TB"), "person_id": p, "override": ov})
-        assert r.status_code == 400 and "booked" in r.json()["detail"]
+    r = post("assign", {"match_id": mid(d, "TB"), "person_id": p})
+    assert r.status_code == 409 and "OVERRIDE" in r.json()["detail"]
+    assert post("assign", {"match_id": mid(d, "TB"), "person_id": p, "override": True}).status_code == 200
+    r = post("assign", {"match_id": mid(d, "TC"), "person_id": p, "override": True})
+    assert r.status_code == 400 and "maximum (2)" in r.json()["detail"]
+    # still blocked through the final Test day (day 4), free on day 5
+    d4, d5 = "2027-08-05", "2027-08-06"
+    post("matches/bulk", {"day": d4, "dept": "DECLARATION", "fmt": "T20", "text": "TD4"})
+    post("matches/bulk", {"day": d5, "dept": "DECLARATION", "fmt": "T20", "text": "TD5"})
+    r = post("assign", {"match_id": mid(d4, "TD4"), "person_id": p, "override": True})
+    assert r.status_code == 400 and "booked" in r.json()["detail"]
+    assert post("assign", {"match_id": mid(d5, "TD5"), "person_id": p}).status_code == 200
+    # a Test starting a different day inside the span is still refused
+    d2 = "2027-08-03"
+    post("matches/bulk", {"day": d2, "dept": "DECLARATION", "fmt": "TEST", "comp": "RANJI", "text": "TE"})
+    r = post("assign", {"match_id": mid(d2, "TE"), "person_id": p, "override": True})
+    assert r.status_code == 400
