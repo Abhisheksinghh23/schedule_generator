@@ -172,9 +172,14 @@ def test_one_format_per_person_per_day():
     assert r.assignments["1"] == ["a"] and r.assignments["2"] == [] and r.unfilled
 
 
-def test_manual_mix_refused_even_with_override():
+def test_manual_mix_warns_and_admin_can_confirm_up_to_two_matches():
     a = P("a")
-    ms = {"1": Match("1", "DECLARATION", "T20"), "2": Match("2", "DECLARATION", "ODI")}
-    asg = {"1": ["a"], "2": []}
-    for ov in (False, True):
-        with pytest.raises(ValueError, match="one format per day"): validate_manual(a, ms["2"], asg, ms, override=ov)
+    ms = {"1": Match("1", "DECLARATION", "T20"), "2": Match("2", "DECLARATION", "ODI"), "3": Match("3", "DECLARATION", "TEST")}
+    asg = {"1": ["a"], "2": [], "3": []}
+    with pytest.raises(LimitReached, match="one format per day"): validate_manual(a, ms["2"], asg, ms)
+    validate_manual(a, ms["2"], asg, ms, override=True)
+    asg2 = {"1": ["a"], "2": ["a"], "3": []}                                  # already two: ceiling, no override
+    with pytest.raises(ValueError, match="daily maximum"): validate_manual(a, ms["3"], asg2, ms, override=True)
+    # automatic generation still never mixes
+    r = allocate([Match("1", "DECLARATION", "T20", 1, need=1), Match("2", "DECLARATION", "ODI", 2, need=1)], [a])
+    assert r.assignments["2"] == []
