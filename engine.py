@@ -1,5 +1,5 @@
 """Smart Match Allocation - core engine (pure Python, no I/O)."""
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, date, timedelta
 from typing import Optional
 
@@ -173,6 +173,10 @@ def validate_manual(person, match, assignments, matches, locked_ids=(), override
             load.setdefault(pid, {})
             f = matches[mid].fmt
             load[pid][f] = load[pid].get(f, 0) + 1
+    if match.fmt == "TEST" and match.day and load.get(person.id, {}).get("TEST", 0) >= 1:
+        # second Test starting the same day (admin override only): its overlap with the first is allowed;
+        # earlier Tests (rest_until) and Tests starting on other days still block.
+        person = replace(person, future=[f for f in person.future if f != match.day])
     r = ineligible_reason(person, match, load, limits=False)
     if r:
         raise ValueError(r)
