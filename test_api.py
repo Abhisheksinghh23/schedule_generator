@@ -55,8 +55,16 @@ def test_no_format_cap_and_department_rules():
     post("matches/bulk", {"day": D3, "dept": "DECLARATION", "fmt": "T20", "text": "X3"})
     ids = {m["code"]: m["id"] for m in sched(D3)}
     r = post("assign", {"match_id": ids["X3"], "person_id": "P0001"})
-    assert r.status_code == 409 and r.json()["detail"].startswith("OVERRIDE:")     # 3rd needs admin override
-    assert post("assign", {"match_id": ids["X3"], "person_id": "P0001", "override": True}).status_code == 200
+    assert r.status_code == 400 and "maximum" in r.json()["detail"]      # 3rd T20: hard stop, even with override
+    assert post("assign", {"match_id": ids["X3"], "person_id": "P0001", "override": True}).status_code == 400
+    D4 = "2026-12-20"
+    post("matches/bulk", {"day": D4, "dept": "DECLARATION", "fmt": "ODI", "text": "Y1\nY2\nY3"})
+    ids4 = {m["code"]: m["id"] for m in sched(D4)}
+    assert post("assign", {"match_id": ids4["Y1"], "person_id": "P0001"}).status_code == 200
+    r = post("assign", {"match_id": ids4["Y2"], "person_id": "P0001"})
+    assert r.status_code == 409 and r.json()["detail"].startswith("OVERRIDE:")     # 2nd ODI needs admin override
+    assert post("assign", {"match_id": ids4["Y2"], "person_id": "P0001", "override": True}).status_code == 200
+    assert post("assign", {"match_id": ids4["Y3"], "person_id": "P0001", "override": True}).status_code == 400  # 3rd: never
     assert post("assign", {"match_id": ids["X3"], "person_id": "P0005"}).status_code == 400  # Fancy person
 
 def test_lock_transfer_auth_persistence():
