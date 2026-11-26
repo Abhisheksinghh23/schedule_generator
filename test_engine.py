@@ -21,30 +21,29 @@ def test_no_cross_department():
     r = allocate([Match("1", "DECLARATION", "T20")], ps)
     assert "f1" not in r.assignments["1"]
 
-@pytest.mark.parametrize("fmt,usual", [("T20", 2), ("ODI", 2)])
-def test_usual_load_first_then_overflow_beyond_old_cap(fmt, usual):
+@pytest.mark.parametrize("fmt,cap", [("T20", 2), ("ODI", 1), ("TEST", 1)])
+def test_auto_never_exceeds_daily_format_cap(fmt, cap):
     ps = [P("a", rel=t(9)), P("b", rel=t(10))]   # only 2 people
-    ms = [Match(str(i), "DECLARATION", fmt, i) for i in range(usual + 2)]
+    ms = [Match(str(i), "DECLARATION", fmt, i) for i in range(cap + 1)]
     r = allocate(ms, ps)
-    assert r.complete                             # no hard cap: every slot is filled
-    for p in ps:                                  # people can now exceed the old limit
-        assert sum(p.id in v for v in r.assignments.values()) == usual + 2
-    assert r.overflow                             # and the overflow is reported
+    assert r.unfilled and not r.overflow          # hard cap in auto mode: slot stays empty
+    for p in ps:
+        assert sum(p.id in v for v in r.assignments.values()) <= cap
 
 def test_enough_staff_still_spreads_by_usual_load():
     ps = [P(x, rel=t(9 + i)) for i, x in enumerate("abcd")]
     ms = [Match(str(i), "DECLARATION", "ODI", i) for i in (1, 2, 3)]
     r = allocate(ms, ps)
-    assert r.assignments["1"] == ["a", "b"] and r.assignments["2"] == ["a", "b"] and not r.overflow
-    assert r.assignments["3"] == ["c", "d"]       # default 2 per format reached -> next people
+    assert r.assignments["1"] == ["a", "b"] and r.assignments["2"] == ["c", "d"] and not r.overflow
+    assert r.assignments["3"] == [] and r.unfilled   # 1 ODI per person: all four used, third ODI unfilled
 
 def test_limits_include_locked_assignments():
     ps = [P("a"), P("b"), P("c")]
-    ms = [Match("1", "DECLARATION", "ODI", 1), Match("2", "DECLARATION", "ODI", 2)]
+    ms = [Match("1", "DECLARATION", "T20", 1), Match("2", "DECLARATION", "T20", 2)]
     r = allocate(ms, ps, locked={"1": ["a", "b"]})
     assert r.assignments["1"] == ["a", "b"]
     assert r.assignments["2"][0] == "c"           # locked load counts: free person goes first
-    assert len(r.assignments["2"]) == 2           # a/b still within the default of 2 per format
+    assert len(r.assignments["2"]) == 2           # a/b still within the cap of 2 T20
 
 def test_inactive_excluded_and_new_person_ok():
     ps = [P("x", active=False), P("new"), P("y", rel=t(11))]
@@ -76,11 +75,11 @@ def test_cancelled_skipped_and_release_time_uses_last_completed():
 
 def test_manual_validation():
     a, b = P("a"), P("b")
-    ms = {"1": Match("1", "DECLARATION", "ODI"), "2": Match("2", "DECLARATION", "ODI")}
+    ms = {"1": Match("1", "DECLARATION", "T20"), "2": Match("2", "DECLARATION", "T20")}
     asg = {"1": ["a"], "2": []}
-    validate_manual(a, ms["2"], asg, ms)          # 2nd ODI: within default of 2
+    validate_manual(a, ms["2"], asg, ms)          # 2nd T20: within cap of 2
     asg3 = {"1": ["a"], "2": ["a"], "3": []}
-    ms3 = {**ms, "3": Match("3", "DECLARATION", "ODI")}
+    ms3 = {**ms, "3": Match("3", "DECLARATION", "T20")}
     with pytest.raises(ValueError, match="limit"): validate_manual(a, ms3["3"], asg3, ms3)
     validate_manual(a, ms3["3"], asg3, ms3, override=True)   # admin override: a 3rd
     with pytest.raises(ValueError, match="duplicate"): validate_manual(a, ms["1"], asg, ms)
@@ -113,16 +112,16 @@ def test_rest_after_test_blocks_and_future_window():
     from datetime import timedelta
     d = date(2026, 11, 10)
     def m(day, fmt="T20", comp=None): return Match("1", "DECLARATION", fmt, comp=comp, day=day)
-    p = P("a"); p.rest_until = d + timedelta(days=7)             # 4-day Test + 4 recovery days
-    assert allocate([m(d + timedelta(days=7))], [p]).unfilled      # last recovery day: blocked
-    assert not allocate([m(d + timedelta(days=8))], [p, P("b")]).unfilled   # next day: free
+    p = P("a"); p.rest_until = d + timedelta(days=3)             # 4-day Test, no recovery days
+    assert allocate([m(d + timedelta(days=3))], [p]).unfilled      # final Test day: blocked
+    assert not allocate([m(d + timedelta(days=4))], [p, P("b")]).unfilled   # next day: free
     # giving a Test to someone already booked inside the window is refused
     q = P("q"); q.future = [d + timedelta(days=3)]
     assert allocate([m(d, "TEST", "RANJI")], [q]).unfilled
-    q.future = [d + timedelta(days=8)]                           # just outside Ranji window
+    q.future = [d + timedelta(days=4)]                           # just outside Ranji window
     assert allocate([m(d, "TEST", "RANJI")], [q, P("r")]).complete
     assert allocate([m(d, "TEST", "INTERNATIONAL")], [q]).unfilled   # inside 5-day window
-    q.future = [d + timedelta(days=10)]
+    q.future = [d + timedelta(days=5)]
     assert allocate([m(d, "TEST", "INTERNATIONAL")], [q, P("r")]).complete
 
 
@@ -130,8 +129,8 @@ def test_test_duration_and_rest_start_after_final_match_day():
     from datetime import timedelta
     from engine import rest_until_after_test
     d = date(2026, 11, 10)
-    assert rest_until_after_test(d, "RANJI") == d + timedelta(days=7)
-    assert rest_until_after_test(d, "INTERNATIONAL") == d + timedelta(days=9)
+    assert rest_until_after_test(d, "RANJI") == d + timedelta(days=3)
+    assert rest_until_after_test(d, "INTERNATIONAL") == d + timedelta(days=4)
     ranji = Match("r", "DECLARATION", "TEST", comp="RANJI", day=d)
     international = Match("i", "DECLARATION", "TEST", comp="INTERNATIONAL", day=d)
     assert release_for("a", {"r": ["a"]}, {"r": ranji}, t(9)) == t(9) + timedelta(days=4)
@@ -144,3 +143,12 @@ def test_allocate_does_not_assign_test_staff_to_other_matches_same_day():
     other = Match("other", "DECLARATION", "T20", order=1, day=d)
     result = allocate([other, test], [P("a"), P("b"), P("c"), P("d")])
     assert set(result.assignments["test"]).isdisjoint(result.assignments["other"])
+
+
+def test_odi_and_test_cap_one_manual_override_to_two():
+    a = P("a")
+    for fmt in ("ODI", "TEST"):
+        ms = {"1": Match("1", "DECLARATION", fmt), "2": Match("2", "DECLARATION", fmt)}
+        asg = {"1": ["a"], "2": []}
+        with pytest.raises(ValueError, match="limit"): validate_manual(a, ms["2"], asg, ms)
+        validate_manual(a, ms["2"], asg, ms, override=True)   # admin makes it two
