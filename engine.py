@@ -7,7 +7,7 @@ SLOTS = {"DECLARATION": 2, "FANCY": 5}
 LIMITS = {"T20": 2, "ODI": 1, "TEST": 1}   # daily maximum per person per format. Auto-generate never
                                            # exceeds it (a slot stays empty instead); the admin can
                                            # override it manually (needs confirmation).
-MAX_OVERRIDE = {"T20": 2, "ODI": 2, "TEST": 2}   # absolute ceiling per person per day, even with admin override
+MAX_PER_DAY = 2   # absolute ceiling: matches per person per day, any format, even with admin override
 TEST_DAYS = {"RANJI": 4, "INTERNATIONAL": 5}
 REST_DAYS = {"RANJI": 0, "INTERNATIONAL": 0}      # no extra recovery: the 4/5 Test days are the whole block
 DURATION = {"T20": 4, "ODI": 8}                    # hours per match
@@ -160,34 +160,37 @@ class LimitReached(ValueError):
     """Default daily format load reached; the admin may override it."""
 
 
-def validate_manual(person, match, assignments, matches, locked_ids=(), override=False):
-    """Manual add/replace check; raises ValueError on any hard-rule breach.
-    Going past the default daily load raises LimitReached unless override=True."""
+def validate_manual(person, match, assignments, matches, locked_ids=(), override=False, extra_warnings=()):
+    """Manual add/replace check by an admin. Hard stops (never overridable): locked, duplicate,
+    full team, inactive person, wrong department, and the absolute ceiling of MAX_PER_DAY matches
+    per person per day. Every other rule (daily format limit, one format per day, Test/recovery
+    windows, leave) is a warning: LimitReached is raised with all of them unless override=True."""
     if match.id in locked_ids:
         raise ValueError("assignment is locked")
     if person.id in assignments.get(match.id, []):
         raise ValueError("duplicate assignment")
+    if not person.active:
+        raise ValueError("inactive")
+    if person.dept != match.dept:
+        raise ValueError("wrong department")
     load = {}
     for mid, ps in assignments.items():
         for pid in ps:
             load.setdefault(pid, {})
             f = matches[mid].fmt
             load[pid][f] = load[pid].get(f, 0) + 1
-    if match.fmt == "TEST" and match.day and load.get(person.id, {}).get("TEST", 0) >= 1:
-        # second Test starting the same day (admin override only): its overlap with the first is allowed;
-        # earlier Tests (rest_until) and Tests starting on other days still block.
-        person = replace(person, future=[f for f in person.future if f != match.day])
-    r = ineligible_reason(person, match, load, limits=False)
-    if r:
-        raise ValueError(r)
-    used = load.get(person.id, {}).get(match.fmt, 0)
-    if used >= MAX_OVERRIDE[match.fmt]:
-        raise ValueError(f"daily {match.fmt} maximum ({MAX_OVERRIDE[match.fmt]}) reached; not allowed even with override")
-    if not override and used >= LIMITS[match.fmt]:
-        raise LimitReached(f"daily {match.fmt} limit ({LIMITS[match.fmt]}) reached")
+    used_all = sum(load.get(person.id, {}).values())
+    if used_all >= MAX_PER_DAY:
+        raise ValueError(f"daily maximum ({MAX_PER_DAY} matches) reached; not allowed even with override")
     need = match.need or SLOTS[match.dept]
     if len(assignments.get(match.id, [])) >= need:
         raise ValueError("match team is full")
+    warns = list(extra_warnings)
+    r = ineligible_reason(person, match, load, limits=True)
+    if r:
+        warns.append(r)
+    if warns and not override:
+        raise LimitReached("; ".join(warns))
 
 
 def transfer(person, new_dept, is_admin, admin_id, history, upcoming=()):
