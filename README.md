@@ -28,14 +28,15 @@ FastAPI + SQLite/PostgreSQL + single-page web UI (works on desktop, tablet, Andr
 
 ## Rules implemented
 - Declaration 2 people / Fancy 5 people per match; departments fully isolated.
-- Daily maximum per person: either 2 T20s, or 1 ODI, or 1 Test. Formats are never mixed in a day (manual
-  assignment and override included). Auto-generate never exceeds it; if not
-  enough eligible people remain, the slot is left unfilled and reported.
-- Admin override: manually adding a person past the maximum asks for confirmation ("Assign anyway?"); confirm to
-  allow a second ODI or Test. Logged in the audit log as a limit override. The absolute ceiling is 2 per format
-  per day: a third is refused even with override (T20 stays at 2). A second Test is allowed only by manual
-  override and only if both Tests start the same day (their overlap is accepted); the person stays booked through the
-  later final day of either Test. Auto-generate never gives a person a second Test.
+- Automatic generation: each person's day is either 2 T20s, or 1 ODI, or 1 Test. Formats are never mixed, no one
+  exceeds the maximum, and Test days are blocked. If not enough eligible people remain, the slot is left unfilled
+  and reported.
+- Admin manual edits: an admin can assign anyone in the right department, active, to any match. Breaking a scheduling
+  rule (daily format limit, mixing formats, being booked on a Test through its final day, leave, a Test overlapping
+  other matches) shows the reasons and asks "Assign anyway?"; confirming allows it and logs a limit override.
+  This is how an admin makes it two ODIs or two Tests. Hard stops that cannot be overridden: a person already on
+  2 matches that day (ceiling), a locked assignment, a duplicate, a full team, an inactive person, a wrong department.
+  Auto-generate never uses these exceptions. Authentication is unchanged: all of this requires the admin login.
 - Test availability: Ranji Tests occupy 4 calendar days and International Tests 5, with no extra recovery days.
   The assigned people are unavailable through the final Test day and free the day after. Enter the actual completion
   date and time in Close Day when known; otherwise the schedule estimates the final day from the Test type.
