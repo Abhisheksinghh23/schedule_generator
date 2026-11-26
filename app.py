@@ -516,14 +516,13 @@ def assign(a: Assign, _=Depends(admin)):
         if a.replace_person_id:
             if a.replace_person_id in lk.get(k, []): raise HTTPException(409, "That assignment is locked")
             asg[k] = [p for p in asg[k] if p != a.replace_person_id]
-        if m["day"] in parse_leave(pr["leave"]):
-            raise HTTPException(400, f"{pr['name']} is on leave on {m['day']}")
+        extra = [f"{pr['name']} is on leave on {m['day']}"] if m["day"] in parse_leave(pr["leave"]) else []
         try:
-            # a manual Test may stack on a same-start-day Test (override, max 2): ignore same-day Tests here;
-            # engine.validate_manual enforces the count, and earlier Tests still block
-            ru, fut = rest_info(c, pr["id"], m["day"], before_only=(m["fmt"] == "TEST"))
+            # admin manual edits: every scheduling rule is a warning the admin can confirm; only the
+            # per-day ceiling (2 matches), lock, duplicate, full team, inactive and department are hard
+            ru, fut = rest_info(c, pr["id"], m["day"])
             E.validate_manual(E.Person(pr["id"], pr["name"], pr["dept"], bool(pr["active"]),
-                                       rest_until=ru, future=fut), ms[k], asg, ms, override=a.override)
+                                       rest_until=ru, future=fut), ms[k], asg, ms, override=a.override, extra_warnings=extra)
         except E.LimitReached as e:
             raise HTTPException(409, f"OVERRIDE: {e}")
         except ValueError as e:
