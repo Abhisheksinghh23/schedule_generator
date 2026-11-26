@@ -43,11 +43,15 @@ def test_daily_load_default_two_then_admin_override_logged():
     d = "2027-01-05"
     post("matches/bulk", {"day": d, "dept": "DECLARATION", "fmt": "T20", "text": "L1\nL2"})
     post("generate/" + d)
-    assert team(d, "L1") == team(d, "L2")                   # 2 per format: same pair may hold both
-    post("matches/bulk", {"day": d, "dept": "DECLARATION", "fmt": "T20", "text": "L3"})
-    r = post("assign", {"match_id": mid(d, "L3"), "person_id": pid("A1")})
+    assert team(d, "L1") == team(d, "L2")                   # T20 cap 2: same pair may hold both
+    d2 = "2027-01-04"
+    post("matches/bulk", {"day": d2, "dept": "DECLARATION", "fmt": "ODI", "text": "M1\nM2"})
+    post("generate/" + d2)
+    first = team(d2, "M1"); assert team(d2, "M2") != first  # ODI cap 1: different people
+    post("matches/bulk", {"day": d2, "dept": "DECLARATION", "fmt": "ODI", "text": "M3"})
+    r = post("assign", {"match_id": mid(d2, "M3"), "person_id": pid(first[0])})
     assert r.status_code == 409 and r.json()["detail"].startswith("OVERRIDE:")
-    assert post("assign", {"match_id": mid(d, "L3"), "person_id": pid("A1"), "override": True}).status_code == 200
+    assert post("assign", {"match_id": mid(d2, "M3"), "person_id": pid(first[0]), "override": True}).status_code == 200
     log = cl.get("/api/history", headers=H).json()["audit"]
     assert any("limit override" in a["detail"] for a in log)     # override is on record
 
