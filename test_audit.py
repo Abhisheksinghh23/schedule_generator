@@ -81,7 +81,7 @@ def test_rest_boundaries_ranji_and_international():
     post("generate/2027-02-05")
     assert team("2027-02-05", "FREE") == rt                   # free the day after the Test
     r = post("assign", {"match_id": mid("2027-02-04", "B04"), "person_id": pid(rt[0])})
-    assert r.status_code == 400 and "resting" in r.json()["detail"]   # manual assignment also blocked
+    assert r.status_code == 400 and "booked on a Test" in r.json()["detail"]   # manual assignment also blocked
     # International: 5 days, no recovery
     post("matches/bulk", {"day": "2027-03-01", "dept": "DECLARATION", "fmt": "TEST", "comp": "INTERNATIONAL", "text": "IT"})
     post("generate/2027-03-01"); it = team("2027-03-01", "IT"); assert len(it) == 2
@@ -240,3 +240,15 @@ def test_cf_connecting_ip_separates_clients():
     finally:
         A.MAX_AUTH_FAILS = old
         A._auth_fails.clear()
+
+
+def test_second_same_day_test_is_refused_even_with_override():
+    # A Test occupies the person for its whole 4/5-day span, so a second Test overlaps it.
+    d = "2027-08-02"
+    post("people", {"name": "TX1", "dept": "DECLARATION"})
+    post("matches/bulk", {"day": d, "dept": "DECLARATION", "fmt": "TEST", "comp": "RANJI", "text": "TA\nTB"})
+    p = pid("TX1")
+    assert post("assign", {"match_id": mid(d, "TA"), "person_id": p}).status_code == 200
+    for ov in (False, True):
+        r = post("assign", {"match_id": mid(d, "TB"), "person_id": p, "override": ov})
+        assert r.status_code == 400 and "booked" in r.json()["detail"]
