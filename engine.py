@@ -4,11 +4,11 @@ from datetime import datetime, date, timedelta
 from typing import Optional
 
 SLOTS = {"DECLARATION": 2, "FANCY": 5}
-LIMITS = {"T20": 2, "ODI": 2, "TEST": 2}   # default daily load per person (every format = 2).
-                                           # Auto-generate keeps to it when it can; the admin can
+LIMITS = {"T20": 2, "ODI": 1, "TEST": 1}   # daily maximum per person per format. Auto-generate never
+                                           # exceeds it (a slot stays empty instead); the admin can
                                            # override it manually (needs confirmation).
 TEST_DAYS = {"RANJI": 4, "INTERNATIONAL": 5}
-REST_DAYS = {"RANJI": 4, "INTERNATIONAL": 5}      # recovery days after the final Test day
+REST_DAYS = {"RANJI": 0, "INTERNATIONAL": 0}      # no extra recovery: the 4/5 Test days are the whole block
 DURATION = {"T20": 4, "ODI": 8}                    # hours per match
 
 
@@ -103,9 +103,9 @@ def _key(p, load):
 
 def allocate(matches, people, locked=None):
     """Allocate people to matches. `locked` = {match_id: [person ids]} are kept
-    untouched and counted toward daily load. Pass 1 respects the usual daily
-    format load; if a match is still short, pass 2 reuses people beyond it
-    (least-loaded first) instead of leaving the slot empty."""
+    untouched and counted toward daily load. Respects the daily
+    format maximum; a match that cannot be filled within it is reported as
+    unfilled (the admin can assign manually with an override)."""
     locked = locked or {}
     res, load = Result(), {}
     by_id = {p.id: p for p in people}
@@ -138,18 +138,6 @@ def allocate(matches, people, locked=None):
         for p in pool[:max(0, need - len(chosen))]:
             chosen.append(p.id)
             book(p.id, m)
-        if len(chosen) < need:               # pass 2: no daily format cap
-            extra = [p for p in people if p.id not in chosen
-                     and p.id not in test_assigned
-                     and not (m.fmt == "TEST" and sum(load.get(p.id, {}).values()) > 0)
-                     and ineligible_reason(p, m, load, limits=False) is None]
-            extra.sort(key=lambda p: (sum(load.get(p.id, {}).values()), _key(p, load)))
-            added = extra[:need - len(chosen)]
-            for p in added:
-                chosen.append(p.id)
-                book(p.id, m)
-            if added:
-                res.overflow.append((m.id, [p.name for p in added]))
         reasons = {}
         if len(chosen) < need:
             for p in people:
