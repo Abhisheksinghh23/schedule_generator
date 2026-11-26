@@ -7,6 +7,7 @@ SLOTS = {"DECLARATION": 2, "FANCY": 5}
 LIMITS = {"T20": 2, "ODI": 1, "TEST": 1}   # daily maximum per person per format. Auto-generate never
                                            # exceeds it (a slot stays empty instead); the admin can
                                            # override it manually (needs confirmation).
+MAX_OVERRIDE = {"T20": 2, "ODI": 2, "TEST": 2}   # absolute ceiling per person per day, even with admin override
 TEST_DAYS = {"RANJI": 4, "INTERNATIONAL": 5}
 REST_DAYS = {"RANJI": 0, "INTERNATIONAL": 0}      # no extra recovery: the 4/5 Test days are the whole block
 DURATION = {"T20": 4, "ODI": 8}                    # hours per match
@@ -172,7 +173,10 @@ def validate_manual(person, match, assignments, matches, locked_ids=(), override
     r = ineligible_reason(person, match, load, limits=False)
     if r:
         raise ValueError(r)
-    if not override and load.get(person.id, {}).get(match.fmt, 0) >= LIMITS[match.fmt]:
+    used = load.get(person.id, {}).get(match.fmt, 0)
+    if used >= MAX_OVERRIDE[match.fmt]:
+        raise ValueError(f"daily {match.fmt} maximum ({MAX_OVERRIDE[match.fmt]}) reached; not allowed even with override")
+    if not override and used >= LIMITS[match.fmt]:
         raise LimitReached(f"daily {match.fmt} limit ({LIMITS[match.fmt]}) reached")
     need = match.need or SLOTS[match.dept]
     if len(assignments.get(match.id, [])) >= need:
