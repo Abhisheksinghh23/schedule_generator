@@ -70,6 +70,9 @@ def ineligible_reason(p, m, load, limits=True):
     if p.dept != m.dept:
         return "wrong department"
     used = load.get(p.id, {})
+    other = next((f for f, c in used.items() if f != m.fmt and c > 0), None)
+    if other:                                # one format per person per day, never overridable
+        return f"already on a {other} today (one format per day)"
     if limits and used.get(m.fmt, 0) >= LIMITS[m.fmt]:
         return f"daily {m.fmt} limit ({LIMITS[m.fmt]}) reached"
     if m.day and p.rest_until and m.day <= p.rest_until:
