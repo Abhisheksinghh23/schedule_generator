@@ -197,11 +197,11 @@ def prev_releases(c, day, dept):
     ss = start_of(date.fromisoformat(pd))
     return pd, {p: E.release_for(p, asg, ms, ss) for p in {p for v in asg.values() for p in v}}
 
-def rest_info(c, pid, day):
+def rest_info(c, pid, day, before_only=False):
     """(last blocked day after an assigned Test, dates of overlapping booked matches)."""
     ru = None
     for r in c.execute("SELECT m.day, m.comp, m.done FROM assign a JOIN matches m ON m.id=a.match_id WHERE a.person_id=? "
-                       "AND m.fmt='TEST' AND m.status!='cancelled' AND m.day<=?", (pid, day)):
+                       "AND m.fmt='TEST' AND m.status!='cancelled' AND m.day" + ("<" if before_only else "<=") + "?", (pid, day)):
         done = datetime.fromisoformat(r["done"]) if r["done"] else None
         e = E.rest_until_after_test(date.fromisoformat(r["day"]), r["comp"], done)
         ru = max(ru, e) if ru else e
@@ -519,7 +519,9 @@ def assign(a: Assign, _=Depends(admin)):
         if m["day"] in parse_leave(pr["leave"]):
             raise HTTPException(400, f"{pr['name']} is on leave on {m['day']}")
         try:
-            ru, fut = rest_info(c, pr["id"], m["day"])
+            # a manual Test may stack on a same-start-day Test (override, max 2): ignore same-day Tests here;
+            # engine.validate_manual enforces the count, and earlier Tests still block
+            ru, fut = rest_info(c, pr["id"], m["day"], before_only=(m["fmt"] == "TEST"))
             E.validate_manual(E.Person(pr["id"], pr["name"], pr["dept"], bool(pr["active"]),
                                        rest_until=ru, future=fut), ms[k], asg, ms, override=a.override)
         except E.LimitReached as e:
