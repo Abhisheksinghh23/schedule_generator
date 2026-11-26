@@ -1,10 +1,10 @@
 import os, sqlite3, tempfile
 os.environ["DB_PATH"] = os.path.join(tempfile.mkdtemp(), "t.db")
-os.environ["ADMIN_PASSWORD"] = "pw"
+os.environ.setdefault("ADMIN_PASSWORD", "pw")
 from fastapi.testclient import TestClient
 from app import app, DB, database_path
 
-cl, H = TestClient(app), {"X-Admin-Password": "pw"}
+cl, H = TestClient(app), {"X-Admin-Password": os.environ["ADMIN_PASSWORD"]}
 D1, D2, D3 = "2026-11-03", "2026-11-04", "2026-11-05"
 def post(p, j=None): return cl.post("/api/" + p, json=j, headers=H)
 def sched(d): return cl.get("/api/schedule/" + d, headers=H).json()["matches"]
@@ -70,7 +70,8 @@ def test_lock_transfer_auth_persistence():
     assert post("transfer", {"person_ids": ["P0005"], "new_dept": "DECLARATION", "confirm": True}).json()["moved"] == 1
     h = cl.get("/api/history", headers=H).json()
     assert h["transfers"][0]["from_dept"] == "FANCY" and h["audit"]
-    assert sqlite3.connect(DB).execute("SELECT COUNT(*) FROM people").fetchone()[0] == 9
+    if not os.environ.get("DATABASE_URL"):
+        assert sqlite3.connect(DB).execute("SELECT COUNT(*) FROM people").fetchone()[0] == 9
 
 def test_test_rest_days_ranji_and_international():
     import itertools
@@ -147,3 +148,13 @@ def test_leave_preview_and_undo_and_delete():
     assert cl.delete(f"/api/people/{next_person['id']}/leave?day=2026-12-21", headers=H).status_code == 200
     roster = cl.get("/api/people", headers=H).json()
     assert next(person for person in roster if person["id"] == next_person["id"])["leave"] == ""
+
+
+def test_workload_report():
+    r = cl.get("/api/report?from=2026-11-03&to=2026-11-05", headers=H)
+    assert r.status_code == 200
+    rows = {p["name"]: p for p in r.json()["people"]}
+    assert rows["a"]["total"] >= 2 and rows["a"]["days"] >= 1
+    assert all(p["t20"] + p["odi"] + p["test"] == p["total"] for p in r.json()["people"])
+    assert cl.get("/api/report?from=2026-11-05&to=2026-11-03", headers=H).status_code == 400
+    assert cl.get("/api/report", headers=H).status_code == 200
