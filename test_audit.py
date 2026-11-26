@@ -69,23 +69,23 @@ def test_rest_boundaries_ranji_and_international():
     post("close/2027-02-01", {"matches": [{"id": mid("2027-02-01", "RT"), "status": "completed", "done": "2027-02-04T17:00"}]})
     others = [p["id"] for p in cl.get("/api/people", headers=H).json() if p["name"] not in rt]
     for o in others: cl.post(f"/api/people/{o}/active?active=false", headers=H)
-    for blocked in ("2027-02-04", "2027-02-08"):              # final Test day .. 4th recovery day
+    for blocked in ("2027-02-04",):                          # final Test day (no recovery days)
         post("matches/bulk", {"day": blocked, "dept": "DECLARATION", "fmt": "T20", "text": "B" + blocked[-2:]})
         post("generate/" + blocked)
         assert team(blocked, "B" + blocked[-2:]) == []        # still resting
-    post("matches/bulk", {"day": "2027-02-09", "dept": "DECLARATION", "fmt": "T20", "text": "FREE"})
-    post("generate/2027-02-09")
-    assert team("2027-02-09", "FREE") == rt                   # free again on day 5 after the Test
-    r = post("assign", {"match_id": mid("2027-02-08", "B08"), "person_id": pid(rt[0])})
+    post("matches/bulk", {"day": "2027-02-05", "dept": "DECLARATION", "fmt": "T20", "text": "FREE"})
+    post("generate/2027-02-05")
+    assert team("2027-02-05", "FREE") == rt                   # free the day after the Test
+    r = post("assign", {"match_id": mid("2027-02-04", "B04"), "person_id": pid(rt[0])})
     assert r.status_code == 400 and "resting" in r.json()["detail"]   # manual assignment also blocked
-    # International: 5 days + 5 recovery
+    # International: 5 days, no recovery
     post("matches/bulk", {"day": "2027-03-01", "dept": "DECLARATION", "fmt": "TEST", "comp": "INTERNATIONAL", "text": "IT"})
     post("generate/2027-03-01"); it = team("2027-03-01", "IT"); assert len(it) == 2
     post("close/2027-03-01", {"matches": [{"id": mid("2027-03-01", "IT"), "status": "completed", "done": "2027-03-05T17:00"}]})
-    post("matches/bulk", {"day": "2027-03-10", "dept": "DECLARATION", "fmt": "T20", "text": "IB"})
-    post("generate/2027-03-10"); assert team("2027-03-10", "IB") == []
-    post("matches/bulk", {"day": "2027-03-11", "dept": "DECLARATION", "fmt": "T20", "text": "IF"})
-    post("generate/2027-03-11"); assert team("2027-03-11", "IF") == it
+    post("matches/bulk", {"day": "2027-03-05", "dept": "DECLARATION", "fmt": "T20", "text": "IB"})
+    post("generate/2027-03-05"); assert team("2027-03-05", "IB") == []
+    post("matches/bulk", {"day": "2027-03-06", "dept": "DECLARATION", "fmt": "T20", "text": "IF"})
+    post("generate/2027-03-06"); assert team("2027-03-06", "IF") == it
 
 def test_cancelled_test_does_not_block():
     post("matches/bulk", {"day": "2027-04-01", "dept": "DECLARATION", "fmt": "TEST", "comp": "RANJI", "text": "CT"})
