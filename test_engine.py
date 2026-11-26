@@ -160,3 +160,21 @@ def test_override_ceiling_is_two():
         asg = {"1": ["a"], "2": ["a"], "3": []}
         with pytest.raises(ValueError, match="maximum"): validate_manual(a, ms["3"], asg, ms, override=True)
         with pytest.raises(ValueError, match="maximum"): validate_manual(a, ms["3"], asg, ms)
+
+
+def test_one_format_per_person_per_day():
+    a, b = P("a", rel=t(9)), P("b", rel=t(10))
+    ms = [Match("1", "DECLARATION", "T20", 1, need=1), Match("2", "DECLARATION", "ODI", 2, need=1)]
+    r = allocate(ms, [a, b])
+    assert r.assignments["1"] and r.assignments["2"] and not set(r.assignments["1"]) & set(r.assignments["2"])
+    # only one person: the second format stays unfilled instead of mixing
+    r = allocate(ms, [a])
+    assert r.assignments["1"] == ["a"] and r.assignments["2"] == [] and r.unfilled
+
+
+def test_manual_mix_refused_even_with_override():
+    a = P("a")
+    ms = {"1": Match("1", "DECLARATION", "T20"), "2": Match("2", "DECLARATION", "ODI")}
+    asg = {"1": ["a"], "2": []}
+    for ov in (False, True):
+        with pytest.raises(ValueError, match="one format per day"): validate_manual(a, ms["2"], asg, ms, override=ov)
