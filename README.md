@@ -28,15 +28,15 @@ FastAPI + SQLite/PostgreSQL + single-page web UI (works on desktop, tablet, Andr
 
 ## Rules implemented
 - Declaration 2 people / Fancy 5 people per match; departments fully isolated.
-- Default daily load: 2 matches per person for every format (T20, ODI, Test). Auto-generate keeps to it and only goes
-  beyond it if a slot would otherwise stay empty (warning lists who was reused).
-- Admin override: manually adding a person past the default of 2 asks for confirmation ("Assign anyway?"); confirm to
-  assign any number of matches in any format. Logged in the audit log as a limit override.
-- Test availability: Ranji Tests occupy 4 calendar days and International Tests 5. The assigned people are
-  unavailable for 4 or 5 recovery days, respectively, after the final Test day. Enter the actual completion
+- Daily maximum per person: 2 T20s, 1 ODI or 1 Test, counted per format. Auto-generate never exceeds it; if not
+  enough eligible people remain, the slot is left unfilled and reported.
+- Admin override: manually adding a person past the maximum asks for confirmation ("Assign anyway?"); confirm to
+  allow it (for example a second ODI or Test). Logged in the audit log as a limit override.
+- Test availability: Ranji Tests occupy 4 calendar days and International Tests 5, with no extra recovery days.
+  The assigned people are unavailable through the final Test day and free the day after. Enter the actual completion
   date and time in Close Day when known; otherwise the schedule estimates the final day from the Test type.
   The rule is enforced for generated and manual assignments, including matches booked inside a future Test's
-  duration or recovery window. Cancelled Tests don't block. Tag each Test Ranji or International (Matches tab,
+  duration. Cancelled Tests don't block. Tag each Test Ranji or International (Matches tab,
   or per line: `MATCH 103, TEST, RANJI`).
 - Match length: T20 4h and ODI 8h. Matches run back to back from the day start
   (env `DAY_START`, default 09:00). Release time = end of last match; actual completion
