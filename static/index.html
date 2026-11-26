@@ -1,56 +1,381 @@
-﻿<!doctype html><html><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Smart Match Allocation</title>
-<style>body{font:15px system-ui;margin:0;background:#f4f5f7}header{background:#1f2a44;color:#fff;padding:10px 14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}main{padding:12px;max-width:1100px;margin:auto}button,select,input,textarea{font:inherit;padding:6px 9px;border:1px solid #bbb;border-radius:6px}button{background:#2d5bd9;color:#fff;border:0;cursor:pointer}button.g{background:#666}button.r{background:#c0392b}nav button{background:#3b4a70}nav button.on{background:#2d5bd9}.card{background:#fff;border-radius:8px;padding:12px;margin:10px 0;overflow-x:auto}table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #eee;padding:6px;text-align:left}.chip{display:inline-block;background:#e8eefc;border-radius:12px;padding:2px 8px;margin:2px}.ok{color:#1e8e3e}.warn{color:#b8860b}.bad{color:#c0392b}textarea{width:100%;box-sizing:border-box}.pw-modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:9999}.pw-box{background:#fff;border-radius:10px;padding:18px;min-width:290px;max-width:90vw;box-shadow:0 10px 32px rgba(0,0,0,.2)}.pw-box input{display:block;width:100%;box-sizing:border-box;margin:10px 0 14px}.pw-actions{display:flex;justify-content:flex-end;gap:8px}.pw-actions button{padding:8px 12px}.hidden{display:none!important}.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}</style>
-</head><body>
-<header><b>Smart Match Allocation</b><input type=date id=day onchange=show()><nav id=nav></nav></header><main id=v></main>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Smart Match Allocation</title>
+<style>
+:root{
+  --bg:#eef1f6; --card:#fff; --ink:#1e2433; --muted:#6b7385; --line:#e4e8f0;
+  --accent:#4f46e5; --accent-d:#4338ca; --ok:#15803d; --ok-bg:#dcfce7;
+  --warn:#b45309; --warn-bg:#fef3c7; --bad:#b91c1c; --bad-bg:#fee2e2;
+  --chip:#eef2ff; --radius:12px; --shadow:0 1px 3px rgba(16,24,40,.08);
+}
+*{box-sizing:border-box}
+body{font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;margin:0;background:var(--bg);color:var(--ink)}
+header{position:sticky;top:0;z-index:50;background:#1e2433;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+.bar{max-width:1150px;margin:auto;display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 14px}
+.bar b{font-size:16px;letter-spacing:.2px}
+.bar input[type=date]{background:#2c3447;color:#fff;border:1px solid #46506a;border-radius:8px;padding:6px 9px}
+nav{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}
+nav button{background:transparent;color:#c7cede;border:0;border-radius:8px;padding:7px 12px;cursor:pointer;font:inherit}
+nav button:hover{background:#2c3447;color:#fff}
+nav button.on{background:var(--accent);color:#fff}
+main{max-width:1150px;margin:auto;padding:14px}
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin:0 0 14px}
+.card h3{margin:0 0 10px;font-size:16px}
+.card h4{margin:14px 0 6px;font-size:14px}
+.muted{color:var(--muted);font-size:13px}
+button{font:inherit;padding:7px 13px;border-radius:8px;border:1px solid transparent;background:var(--accent);color:#fff;cursor:pointer}
+button:hover{background:var(--accent-d)}
+button.g{background:#fff;color:var(--ink);border-color:#cbd2e0}
+button.g:hover{background:#f3f5fa}
+button.r{background:var(--bad)}
+button.r:hover{background:#991b1b}
+button.sm{padding:3px 9px;font-size:13px}
+button:disabled{opacity:.5;cursor:default}
+input,select,textarea{font:inherit;padding:7px 10px;border:1px solid #cbd2e0;border-radius:8px;background:#fff;color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:2px solid #c7d2fe;border-color:var(--accent)}
+textarea{width:100%;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13.5px}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);text-align:left}
+td,th{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:middle}
+tr:last-child td{border-bottom:0}
+tr.short td{background:#fff7ed}
+.chip{display:inline-flex;align-items:center;gap:5px;background:var(--chip);border-radius:999px;padding:3px 10px;margin:2px;font-size:13.5px}
+.chip.locked{background:#e0e7ff}
+.chip a{color:var(--bad);text-decoration:none;font-weight:700}
+.chip a:hover{text-decoration:underline}
+.badge{display:inline-block;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:600}
+.badge.ok{background:var(--ok-bg);color:var(--ok)}
+.badge.warn{background:var(--warn-bg);color:var(--warn)}
+.badge.bad{background:var(--bad-bg);color:var(--bad)}
+.badge.grey{background:#e5e9f2;color:#556}
+.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+.progress{height:7px;background:#e5e9f2;border-radius:99px;overflow:hidden;min-width:110px;margin-top:6px}
+.progress i{display:block;height:100%;background:var(--ok);border-radius:99px}
+.progress i.part{background:var(--warn)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:820px){.grid2{grid-template-columns:1fr}}
+/* toasts */
+#toasts{position:fixed;top:64px;right:14px;z-index:1000;display:flex;flex-direction:column;gap:8px;max-width:min(420px,92vw)}
+.toast{background:#1e2433;color:#fff;border-radius:10px;padding:11px 14px;box-shadow:0 6px 20px rgba(0,0,0,.25);font-size:14px;white-space:pre-line;animation:slidein .18s ease-out}
+.toast.ok{background:#166534}.toast.err{background:#991b1b}.toast.warn{background:#92400e}
+@keyframes slidein{from{transform:translateX(20px);opacity:0}to{transform:none;opacity:1}}
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(15,20,35,.5);display:flex;align-items:center;justify-content:center;z-index:999;padding:14px}
+.mbox{background:#fff;border-radius:14px;padding:20px;width:min(430px,94vw);box-shadow:0 16px 44px rgba(0,0,0,.3)}
+.mbox h3{margin:0 0 6px}
+.mbox .body{white-space:pre-line;font-size:14px;margin:8px 0 16px;color:#374151;max-height:55vh;overflow:auto}
+.mbox input{width:100%;margin:8px 0 14px}
+.mactions{display:flex;justify-content:flex-end;gap:8px}
+.hidden{display:none!important}
+.daystate{font-weight:700}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid #c7d2fe;border-top-color:var(--accent);border-radius:50%;animation:rot .7s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes rot{to{transform:rotate(360deg)}}
+/* print: schedule only */
+@media print{
+  body{background:#fff} header,#toasts,.noprint{display:none!important}
+  main{max-width:none;padding:0}.card{box-shadow:none;border:1px solid #ddd;break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<header><div class="bar">
+  <b>Smart Match Allocation</b>
+  <input type="date" id="day" onchange="show()">
+  <span id="daystate" class="daystate"></span>
+  <nav id="nav"></nav>
+</div></header>
+<main id="v"><div class="card"><span class="spin"></span>Loading…</div></main>
+<div id="toasts"></div>
+
 <script>
-const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>\"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
-let PW=sessionStorage.pw||"",TAB="sched",editMode=false;const V={};
-const TABS={sched:"Schedule",matches:"Matches",people:"People",close:"Close Day",hist:"History"};
-function askPassword(){return new Promise((resolve,reject)=>{
-  const existing=document.getElementById("pw-modal"); if(existing) existing.remove();
-  const overlay=document.createElement("div"); overlay.id="pw-modal"; overlay.className="pw-modal";
-  const box=document.createElement("div"); box.className="pw-box";
-  box.innerHTML='<h3>Admin password</h3><input id="pw-input" type="password" placeholder="Enter password" autocomplete="current-password"><div class="pw-actions"><button class="g" id="pw-cancel" type="button">Cancel</button><button id="pw-submit" type="button">OK</button></div>';
-  overlay.appendChild(box); document.body.appendChild(overlay);
-  const input=box.querySelector("#pw-input");
-  const close=(v)=>{overlay.remove(); resolve(v);};
-  const cancel=()=>{overlay.remove(); reject(new Error("Login required"));};
-  box.querySelector("#pw-submit").onclick=()=>{const v=input.value; if(!v){input.focus(); return;} close(v);};
-  box.querySelector("#pw-cancel").onclick=cancel;
-  overlay.addEventListener("click",e=>{if(e.target===overlay) cancel();});
-  input.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault(); box.querySelector("#pw-submit").click();}});
-  input.focus();
-});}
-function syncMatchInputs(){const mf=document.getElementById("mf"),mc=document.getElementById("mc-wrap"); if(!mf||!mc)return; mc.classList.toggle("hidden", mf.value !== "TEST");}
-function exportSchedulePDF(){window.print();}
-function exportScheduleText(){const d=$("#day").value; api("schedule/"+d).then(s=>{const lines=[`Smart Match Allocation - ${d}`]; const groups={}; for(const m of s.matches){(groups[m.dept]||(groups[m.dept]=[])).push(m);} for(const dept of Object.keys(groups)){lines.push(''); lines.push(dept); for(const m of groups[dept]){const names=(m.people||[]).map(p=>p.name).join(', ')||'Unassigned'; const fmt=m.fmt+(m.comp?` (${m.comp.toLowerCase()})`: ''); lines.push(`- ${m.code} | ${fmt} | need ${m.need || 2} | ${names}`);}} const blob=new Blob([lines.join('\n')],{type:'text/plain;charset=utf-8'}); const a=document.createElement('a'); const url=URL.createObjectURL(blob); a.href=url; a.download=`smart-match-${d}.txt`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);}).catch(e=>alert(e.message));}
-function toggleEditMode(){editMode=!editMode; show();}
-async function saveLeave(pid){const input=document.querySelector('.leave-date[data-id="'+pid+'"]'); if(!input||!input.value){alert('Choose a leave date first.'); return;} try{await api(`people/${pid}/leave`,'POST',{date:input.value}); show();}catch(e){alert(e.message);}}
-async function removeLeave(pid,day){try{await api(`people/${pid}/leave?day=${encodeURIComponent(day)}`,'DELETE'); show();}catch(e){alert(e.message);}}
-async function deletePerson(pid){if(!confirm('Delete this person from the roster?')) return; try{await api(`people/${pid}`,'DELETE'); show();}catch(e){alert(e.message);}}
-$("#nav").innerHTML=Object.entries(TABS).map(([k,v])=>`<button data-t=${k} onclick="TAB='${k}';show()">${v}</button>`).join(" ");
+"use strict";
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let PW=sessionStorage.pw||"", TAB=sessionStorage.tab||"sched";
+const TABS={sched:"Schedule",matches:"Matches",people:"People",report:"Reports",close:"Close Day",hist:"History"};
+const V={};
+
+/* ---------- ui helpers ---------- */
+function toast(msg,type=""){const t=document.createElement("div");t.className="toast "+type;t.textContent=msg;
+  $("#toasts").appendChild(t);setTimeout(()=>{t.style.opacity="0";t.style.transition="opacity .3s";setTimeout(()=>t.remove(),320)},type==="err"?6000:3500);}
+function modal({title,body,okText="OK",cancelText="Cancel",input=null,danger=false}){
+  return new Promise(resolve=>{
+    const ov=document.createElement("div");ov.className="modal";
+    ov.innerHTML=`<div class="mbox"><h3>${esc(title)}</h3><div class="body">${esc(body)}</div>
+      ${input?`<input id="m-in" type="${input}" autocomplete="off">`:""}
+      <div class="mactions"><button class="g" id="m-no">${esc(cancelText)}</button><button id="m-yes" ${danger?'class="r"':""}>${esc(okText)}</button></div></div>`;
+    document.body.appendChild(ov);
+    const done=v=>{ov.remove();resolve(v);};
+    ov.querySelector("#m-yes").onclick=()=>done(input?(ov.querySelector("#m-in").value??""):true);
+    ov.querySelector("#m-no").onclick=()=>done(input?null:false);
+    ov.addEventListener("click",e=>{if(e.target===ov)done(input?null:false)});
+    const inp=ov.querySelector("#m-in"); if(inp){inp.focus();inp.addEventListener("keydown",e=>{if(e.key==="Enter")ov.querySelector("#m-yes").click()});}
+  });
+}
+const confirmBox=(title,body,okText="Confirm",danger=false)=>modal({title,body,okText,danger});
+async function askPassword(){
+  const v=await modal({title:"Admin login",body:"Enter the admin password to continue.",okText:"Log in",input:"password"});
+  if(!v)throw new Error("Login required");
+  return v;
+}
+
+/* ---------- api ---------- */
+async function api(p,m="GET",b){
+  const r=await fetch("/api/"+p,{method:m,headers:{"Content-Type":"application/json","X-Admin-Password":PW},body:b?JSON.stringify(b):undefined});
+  const j=await r.json().catch(()=>({}));
+  if(r.status===401){PW=await askPassword();sessionStorage.pw=PW;return api(p,m,b);}
+  if(!r.ok)throw new Error(typeof j.detail==="string"?j.detail:"Request failed ("+r.status+")");
+  return j;
+}
+async function go(p,m="POST",b,{silent=false}={}){
+  try{
+    const r=await api(p,m,b);
+    const w=[...(r.warnings||[]),...(r.unfilled||[]).map(u=>`${u.code} (${u.dept}): ${u.missing} slot(s) unfilled — ${Object.entries(u.reasons||{}).slice(0,6).map(e=>e.join(": ")).join("; ")}`)];
+    if(w.length)toast(w.join("\n"),"warn"); else if(!silent)toast("Done","ok");
+    await show(); return r;
+  }catch(e){toast(e.message,"err");throw e}
+}
+
+/* ---------- shared render bits ---------- */
+const SLOTS={DECLARATION:2,FANCY:5};
+const badge=s=>s==="completed"?`<span class="badge ok">completed</span>`:s==="cancelled"?`<span class="badge grey">cancelled</span>`:`<span class="badge warn">${esc(s)}</span>`;
+const fmtLabel=m=>m.fmt+(m.comp?` (${m.comp.toLowerCase()})`:"");
+function syncMatchInputs(){const mf=$("#mf"),mc=$("#mc-wrap");if(!mf||!mc)return;mc.classList.toggle("hidden",mf.value!=="TEST");}
+
+/* ---------- Schedule tab ---------- */
+V.sched=async()=>{
+  const d=$("#day").value, s=await api("schedule/"+d), P=await api("people");
+  $("#daystate").innerHTML=s.closed?`<span class="badge bad">DAY CLOSED</span>`:"";
+  const dep=D=>{
+    const ms=s.matches.filter(m=>m.dept===D&&m.status!=="cancelled");
+    const req=ms.reduce((a,m)=>a+m.need,0), fil=ms.reduce((a,m)=>a+m.people.length,0);
+    const pp=P.filter(p=>p.dept===D&&p.active);
+    const pct=req?Math.min(100,Math.round(fil/req*100)):0;
+    const rows=ms.map(m=>{
+      const short=m.people.length<m.need;
+      const assignedIds=new Set(m.people.map(p=>p.id));
+      const avail=pp.filter(p=>!assignedIds.has(p.id));
+      return `<tr class="${short?"short":""}">
+        <td><b>${esc(m.code)}</b><br><span class="muted">${fmtLabel(m)}</span></td>
+        <td>${m.people.map(p=>`<span class="chip ${p.locked?"locked":""}">${esc(p.name)}${p.locked?" 🔒":` <a href="#" title="Remove" onclick="return unassign(${m.id},'${p.id}')">✕</a>`}</span>`).join("")||`<span class="muted">—</span>`}
+          <br><span class="muted">${m.people.length}/${m.need} assigned</span></td>
+        <td class="noprint">${short?`<select id="s${m.id}">${avail.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("")}</select>
+          <button class="sm" onclick="addPerson(${m.id})" ${avail.length?"":"disabled"}>Add</button>`:""}</td></tr>`;
+    }).join("");
+    return `<div class="card"><h3>${D} <span class="badge ${!fil?"grey":fil===req?"ok":"warn"}">${fil}/${req} slots filled</span>
+      <span class="muted">· ${pp.length} active people</span></h3>
+      ${ms.length?`<div class="progress"><i class="${fil===req?"":"part"}" style="width:${pct}%"></i></div>
+      <div class="tablewrap"><table><tr><th>Match</th><th>Assigned</th><th class="noprint">Add</th></tr>${rows}</table></div>`
+      :`<p class="muted">No ${D.toLowerCase()} matches on this date.</p>`}</div>`;
+  };
+  return `<div class="card noprint"><div class="toolbar">
+    <button onclick="generate('${d}')">Generate schedule</button>
+    <button class="g" onclick="go('preview/${d}','GET')">Preview conflicts</button>
+    <button class="g" onclick="go('undo','POST')">Undo last change</button>
+    <button class="g" onclick="lockAll('${d}',true)">Lock all</button>
+    <button class="g" onclick="lockAll('${d}',false)">Unlock all</button>
+    <button class="g" onclick="window.print()">Print / PDF</button>
+    <button class="g" onclick="exportText('${d}')">Export text</button>
+  </div></div>`+dep("DECLARATION")+dep("FANCY");
+};
+async function generate(d){
+  if(!(await confirmBox("Generate schedule","Generate / regenerate all unlocked assignments for "+d+"? Locked assignments are kept.","Generate")))return;
+  go("generate/"+d);
+}
+async function lockAll(d,locked){await go(`lock/${d}?locked=${locked}`,"POST",null,{silent:true});toast(locked?"All assignments locked":"All assignments unlocked","ok");}
+function unassign(mid,pid){go("unassign","POST",{match_id:mid,person_id:pid},{silent:true}).then(()=>toast("Removed","ok"));return false;}
+async function addPerson(mid,override=false){
+  const sel=$("#s"+mid); if(!sel||!sel.value)return;
+  const b={match_id:mid,person_id:sel.value,override};
+  try{await api("assign","POST",b);toast("Assigned","ok");show();}
+  catch(e){
+    if(e.message.startsWith("OVERRIDE:")){
+      const ok=await confirmBox("Admin override",e.message.slice(9).trim()+".\nAssign anyway (admin override)? This is logged.","Assign anyway",true);
+      if(ok){try{await api("assign","POST",{...b,override:true});toast("Assigned with override","ok");show();}catch(x){toast(x.message,"err");}}
+    }else toast(e.message,"err");
+  }
+}
+function exportText(d){
+  api("schedule/"+d).then(s=>{
+    const lines=[`Smart Match Allocation — ${d}`];const groups={};
+    for(const m of s.matches)(groups[m.dept]??=[]).push(m);
+    for(const dept of Object.keys(groups)){lines.push("",dept);
+      for(const m of groups[dept]){const names=(m.people||[]).map(p=>p.name).join(", ")||"Unassigned";
+        lines.push(`- ${m.code} | ${fmtLabel(m)} | need ${m.need} | ${names}`);}}
+    const blob=new Blob([lines.join("\n")],{type:"text/plain;charset=utf-8"});
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`smart-match-${d}.txt`;a.click();URL.revokeObjectURL(a.href);
+  }).catch(e=>toast(e.message,"err"));
+}
+
+/* ---------- Matches tab ---------- */
+V.matches=async()=>{
+  const d=$("#day").value, s=await api("schedule/"+d);
+  return `<div class="card"><h3>Add matches</h3>
+    <div class="toolbar">
+      <select id="md"><option>DECLARATION</option><option>FANCY</option></select>
+      <select id="mf" onchange="syncMatchInputs()"><option value="T20">T20</option><option value="ODI">ODI</option><option value="TEST">TEST</option></select>
+      <span id="mc-wrap" class="hidden"><select id="mc" title="Test type"><option value="INTERNATIONAL">INTERNATIONAL</option><option value="RANJI">RANJI</option></select></span>
+      <label class="muted">Required slots <select id="mn">${Array.from({length:10},(_,i)=>i+1).map(n=>`<option value="${n}">${n}</option>`).join("")}</select></label>
+    </div>
+    <textarea id="mt" rows="6" placeholder="MATCH 101&#10;MATCH 102, ODI&#10;MATCH 103, TEST, RANJI"></textarea>
+    <div class="toolbar">
+      <button onclick="addMatches()">Add matches</button>
+      <span class="muted">from</span><input type="date" id="ms" value="${d}">
+      <span class="muted">to (optional)</span><input type="date" id="me">
+      <button class="g sm" onclick="$('#me').value=''">Clear end date</button>
+    </div>
+    <p class="muted">Leave the end date empty to add to the start date only. Format per line overrides the dropdown: <b>CODE, FORMAT, TEST TYPE</b>.</p></div>
+  <div class="card"><h3>Matches on ${esc(d)}</h3>
+    ${s.matches.length?`<div class="tablewrap"><table><tr><th>Code</th><th>Dept</th><th>Format</th><th>Slots</th><th>Status</th><th></th></tr>
+    ${s.matches.map(m=>`<tr><td><b>${esc(m.code)}</b></td><td>${m.dept}</td><td>${fmtLabel(m)}</td>
+      <td><select id="need-${m.id}">${Array.from({length:10},(_,i)=>i+1).map(n=>`<option value="${n}" ${Number(m.need)===n?"selected":""}>${n}</option>`).join("")}</select>
+      <button class="g sm" onclick="updateNeed(${m.id})">Update</button></td>
+      <td>${badge(m.status)}</td>
+      <td><button class="r sm" onclick="delMatch(${m.id},'${esc(m.code)}')">Delete</button></td></tr>`).join("")}</table></div>`
+    :`<p class="muted">No matches on this date yet.</p>`}</div>`;
+};
+function addMatches(){
+  const body={day:$("#ms").value,end_day:$("#me").value||null,dept:$("#md").value,fmt:$("#mf").value,
+    comp:($("#mc")||{}).value||"INTERNATIONAL",need:Number($("#mn").value),text:$("#mt").value};
+  go("matches/bulk","POST",body,{silent:true}).then(r=>{if(r)toast(`Added ${r.added} match(es) across ${r.days} day(s)`,"ok");});
+}
+async function updateNeed(mid){const n=Number($("#need-"+mid).value);
+  try{await api(`matches/${mid}/need`,"POST",{need:n});toast("Required slots updated","ok");show();}catch(e){toast(e.message,"err");}}
+async function delMatch(mid,code){
+  if(!(await confirmBox("Delete match",`Delete ${code} from this date? Its assignments are removed too.`,"Delete",true)))return;
+  go("matches/"+mid,"DELETE");
+}
+
+/* ---------- People tab ---------- */
+V.people=async()=>{
+  const P=await api("people");
+  const leaveChips=p=>((p.leave||"").split(",").filter(Boolean).map(ld=>
+    `<span class="chip">${esc(ld)} <a href="#" title="Remove leave" onclick="return removeLeave('${p.id}','${ld}')">✕</a></span>`).join("")||`<span class="muted">—</span>`);
+  return `<div class="grid2">
+    <div class="card"><h3>Add person</h3>
+      <div class="toolbar"><input id="pn" placeholder="Name" style="flex:1;min-width:160px">
+      <select id="pd"><option>DECLARATION</option><option>FANCY</option></select>
+      <button onclick="go('people','POST',{name:$('#pn').value,dept:$('#pd').value},{silent:true}).then(r=>r&&toast('Added '+r.id,'ok'))">Add</button></div>
+      <h4>Bulk import</h4><p class="muted">One per line; optional <b>, FANCY</b> suffix.</p>
+      <textarea id="pb" rows="4" placeholder="Anita Rao&#10;Vikram Shah, FANCY"></textarea>
+      <div class="toolbar"><button onclick="go('people/bulk','POST',{text:$('#pb').value,dept:$('#pd').value},{silent:true}).then(r=>r&&toast('Added '+r.added+' people','ok'))">Import list</button></div></div>
+    <div class="card"><h3>Transfer selected</h3>
+      <p class="muted">Past assignments are never changed; upcoming ones stay as booked. Admin-only, logged.</p>
+      <div class="toolbar"><button class="g" onclick="tr('FANCY')">Selected → FANCY</button>
+      <button class="g" onclick="tr('DECLARATION')">Selected → DECLARATION</button></div></div></div>
+  <div class="card"><h3>Roster (${P.length})</h3><div class="tablewrap"><table>
+    <tr><th></th><th>ID</th><th>Name</th><th>Dept</th><th>Active</th><th>Total</th><th>Last</th><th>Leave dates</th><th></th></tr>
+    ${P.map(p=>`<tr><td><input type="checkbox" class="sel" value="${p.id}"></td><td>${p.id}</td>
+      <td><b>${esc(p.name)}</b></td><td>${p.dept}</td>
+      <td>${p.active?'<span class="badge ok">active</span>':'<span class="badge grey">inactive</span>'}</td>
+      <td>${p.total}</td><td>${p.last||"—"}</td>
+      <td>${leaveChips(p)}<span class="noprint"><input type="date" class="leave-date" data-id="${p.id}" style="padding:3px 6px;font-size:12.5px">
+        <button class="g sm" onclick="saveLeave('${p.id}')">Add leave</button></span></td>
+      <td class="noprint"><button class="g sm" onclick="toggleActive('${p.id}',${!p.active})">${p.active?"Deactivate":"Activate"}</button>
+        <button class="r sm" onclick="delPerson('${p.id}','${esc(p.name)}')">Delete</button></td></tr>`).join("")}
+  </table></div></div>`;
+};
+async function tr(d){
+  const ids=$$(".sel:checked").map(x=>x.value); if(!ids.length)return toast("Select people first","warn");
+  try{
+    let r=await api("transfer","POST",{person_ids:ids,new_dept:d});
+    if(r.needs_confirm){
+      const ok=await confirmBox("Confirm transfer",`Transfer ${ids.length} person(s) to ${d}?\n`+(r.warnings||[]).join("\n"),"Transfer");
+      if(!ok)return;
+      r=await api("transfer","POST",{person_ids:ids,new_dept:d,confirm:true});
+    }
+    toast(`Moved ${r.moved} person(s)`,"ok");show();
+  }catch(e){toast(e.message,"err");}
+}
+async function saveLeave(pid){const inp=$(`.leave-date[data-id="${pid}"]`);if(!inp||!inp.value)return toast("Choose a leave date first","warn");
+  try{await api(`people/${pid}/leave`,"POST",{date:inp.value});toast("Leave added","ok");show();}catch(e){toast(e.message,"err");}}
+function removeLeave(pid,day){api(`people/${pid}/leave?day=${encodeURIComponent(day)}`,"DELETE").then(()=>{toast("Leave removed","ok");show();}).catch(e=>toast(e.message,"err"));return false;}
+async function toggleActive(pid,active){try{await api(`people/${pid}/active?active=${active}`,"POST");show();}catch(e){toast(e.message,"err");}}
+async function delPerson(pid,name){
+  if(!(await confirmBox("Delete person",`Delete ${name} from the roster? All their assignments are removed. This can be undone once with Undo.`,"Delete",true)))return;
+  go("people/"+pid,"DELETE");
+}
+
+/* ---------- Reports tab ---------- */
+V.report=async()=>{
+  const d=$("#day").value;
+  return `<div class="card"><h3>Workload report</h3>
+    <div class="toolbar"><span class="muted">From</span><input type="date" id="rf" value="${d.slice(0,8)}01">
+      <span class="muted">To</span><input type="date" id="rt" value="${d}">
+      <button onclick="runReport()">Run</button><button class="g" onclick="reportCSV()">Download CSV</button></div>
+    <div id="report-out"><p class="muted">Choose a range and run the report.</p></div></div>`;
+};
+let REPORT=null;
+async function runReport(){
+  try{REPORT=await api(`report?from=${$("#rf").value}&to=${$("#rt").value}`);renderReport();}
+  catch(e){toast(e.message,"err");}
+}
+function renderReport(){
+  if(!REPORT)return;
+  $("#report-out").innerHTML=`<p class="muted">${REPORT.from} → ${REPORT.to} · ${REPORT.people.length} people</p>
+    <div class="tablewrap"><table><tr><th>ID</th><th>Name</th><th>Dept</th><th>Total</th><th>T20</th><th>ODI</th><th>Test</th><th>Days worked</th><th>Last assignment</th></tr>
+    ${REPORT.people.map(p=>`<tr><td>${p.id}</td><td><b>${esc(p.name)}</b></td><td>${p.dept}</td><td>${p.total}</td>
+      <td>${p.t20}</td><td>${p.odi}</td><td>${p.test}</td><td>${p.days}</td><td>${p.last||"—"}</td></tr>`).join("")}</table></div>`;
+}
+function reportCSV(){
+  if(!REPORT)return toast("Run the report first","warn");
+  const rows=[["ID","Name","Department","Total","T20","ODI","Test","Days worked","Last assignment"],
+    ...REPORT.people.map(p=>[p.id,p.name,p.dept,p.total,p.t20,p.odi,p.test,p.days,p.last||""])];
+  const csv=rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  a.download=`workload-${REPORT.from}_${REPORT.to}.csv`;a.click();URL.revokeObjectURL(a.href);
+}
+
+/* ---------- Close Day tab ---------- */
+V.close=async()=>{
+  const d=$("#day").value, s=await api("schedule/"+d);
+  const o=(m,v)=>`<option ${m.status===v?"selected":""}>${v}`;
+  const doneInput=m=>{const value=m.done?(m.fmt==="TEST"?m.done.slice(0,16):m.done.slice(11,16)):"";
+    return `<input class="ct" data-id="${m.id}" type="${m.fmt==="TEST"?"datetime-local":"time"}" value="${value}">`;};
+  return `<div class="card"><h3>Close day ${esc(d)} ${s.closed?'<span class="badge bad">closed</span>':""}</h3>
+    <p class="muted">Enter actual completion times before closing. Tests take date and time; T20/ODI take time of day. Next day's Generate uses these for release priority.</p>
+    ${s.matches.length?`<div class="tablewrap"><table><tr><th>Match</th><th>Status</th><th>Completed at${s.matches.some(m=>m.fmt==="TEST")?" (date + time for Tests)":" (HH:MM)"}</th></tr>
+    ${s.matches.map(m=>`<tr><td><b>${esc(m.code)}</b> <span class="muted">(${fmtLabel(m)})</span></td>
+      <td><select class="cs" data-id="${m.id}">${o(m,"scheduled")}${o(m,"completed")}${o(m,"cancelled")}</select></td>
+      <td>${doneInput(m)}</td></tr>`).join("")}</table></div>`:`<p class="muted">No matches on this date.</p>`}
+    <div class="toolbar"><button onclick="closeDay()">Close day</button>
+    <button class="g" onclick="go('reopen/'+$('#day').value)">Reopen (correction)</button></div></div>`;
+};
+async function closeDay(){
+  const ms=$$(".cs").map(s=>({id:+s.dataset.id,status:s.value,done:document.querySelector(`.ct[data-id="${s.dataset.id}"]`).value||null}));
+  try{
+    const r=await api("close/"+$("#day").value,"POST",{matches:ms});
+    const rel=Object.entries(r.releases).map(e=>e.join(" → ")).join("\n")||"No assignments.";
+    toast("Day closed.\nFinal release times:\n"+rel+(r.warnings.length?"\n"+r.warnings.join("\n"):""),"ok");show();
+  }catch(e){toast(e.message,"err");}
+}
+
+/* ---------- History tab ---------- */
+V.hist=async()=>{
+  const h=await api("history");
+  return `<div class="card"><h3>Transfers</h3>
+    ${h.transfers.length?`<div class="tablewrap"><table><tr><th>When</th><th>Person</th><th>Change</th><th>By</th></tr>
+    ${h.transfers.map(t=>`<tr><td>${esc(t.at)}</td><td>${t.person_id}</td><td>${t.from_dept} → ${t.to_dept}</td><td>${esc(t.admin)}</td></tr>`).join("")}</table></div>`:`<p class="muted">No transfers yet.</p>`}</div>
+  <div class="card"><h3>Audit log</h3>
+    ${h.audit.length?`<div class="tablewrap"><table><tr><th>When</th><th>Action</th><th>Detail</th></tr>
+    ${h.audit.map(a=>`<tr><td>${esc(a.at)}</td><td>${esc(a.action)}</td><td>${esc(a.detail)}</td></tr>`).join("")}</table></div>`:`<p class="muted">Nothing logged yet.</p>`}</div>`;
+};
+
+/* ---------- boot ---------- */
+$("#nav").innerHTML=Object.entries(TABS).map(([k,v])=>`<button data-t="${k}" onclick="TAB='${k}';sessionStorage.tab='${k}';show()">${v}</button>`).join("");
 $("#day").value=new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
-async function api(p,m="GET",b){const r=await fetch("/api/"+p,{method:m,headers:{"Content-Type":"application/json","X-Admin-Password":PW},body:b?JSON.stringify(b):undefined});
- const j=await r.json().catch(()=>({}));
- if(r.status==401){try{const x=await askPassword();if(!x)throw new Error("Login required");PW=x;sessionStorage.pw=x;return api(p,m,b)}catch(e){throw e}}
- if(!r.ok)throw new Error(typeof j.detail=="string"?j.detail:"Request failed");return j}
-async function go(p,m="POST",b){try{const r=await api(p,m,b);const w=[...(r.warnings||[]),...(r.unfilled||[]).map(u=>`${u.code} (${u.dept}): ${u.missing} slot(s) unfilled — ${Object.entries(u.reasons).slice(0,6).map(e=>e.join(": ")).join("; ")}`)];if(w.length)alert(w.join("\n"));await show();return r}catch(e){alert(e.message)}}
-async function show(){document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t==TAB));
- try{$("#v").innerHTML=await V[TAB](); if(TAB==="matches") setTimeout(syncMatchInputs,0);}catch(e){$("#v").innerHTML=`<div class=card><b class=bad>${esc(e.message)}</b></div>`}}
-V.sched=async()=>{const d=$("#day").value,s=await api("schedule/"+d),P=await api("people");
- const dep=D=>{const ms=s.matches.filter(m=>m.dept==D&&m.status!="cancelled"),req=ms.reduce((a,m)=>a+m.need,0),fil=ms.reduce((a,m)=>a+m.people.length,0),pp=P.filter(p=>p.dept==D&&p.active),cls=!fil?"":fil==req?"ok":"warn";
- return `<div class=card><h3>${D} <small class="${cls}">${fil}/${req} slots filled · ${pp.length} active people</small></h3>${ms.length?`<table><tr><th>Match<th>Format<th>Assigned<th>Add</tr>${ms.map(m=>`<tr><td>${esc(m.code)}<td>${m.fmt}${m.comp?' ('+m.comp.toLowerCase()+')':''}<td>${m.people.map(p=>`<span class=chip>${esc(p.name)}${p.locked?" 🔒":` <a href=# onclick="go('unassign','POST',{match_id:${m.id},person_id:'${p.id}'});return false">✕</a>`}</span>`).join("")}<td>${m.people.length<m.need?`<select id=s${m.id}>${pp.map(p=>`<option value=${p.id}>${esc(p.name)}</option>`).join("")}</select> <button onclick="addPerson(${m.id})">Add</button>`:editMode?`<span class=warn>Full</span>`:""}</tr>`).join("")}</table>`:"<p>No matches for this date.</p>"}</div>`};
- return `<div class=card><div class=toolbar><button onclick="if(confirm('Generate / regenerate all unlocked assignments?'))go('generate/${d}')">Generate schedule</button> <button class=g onclick="go('preview/${d}','GET')">Preview conflicts</button> <button class=g onclick="go('undo','POST')">Undo last change</button> <button class=g onclick="go('lock/${d}?locked=true')">Lock all</button> <button class=g onclick="go('lock/${d}?locked=false')">Unlock all</button> <button class=g onclick="toggleEditMode()">${editMode?"Done editing":"Edit schedule"}</button> <button onclick="exportSchedulePDF()">Export PDF</button> <button class=g onclick="exportScheduleText()">Export Text</button> ${s.closed?"<b class=bad>DAY CLOSED</b>":""}</div></div>`+dep("DECLARATION")+dep("FANCY")};
-V.matches=async()=>{const s=await api("schedule/"+$("#day").value); return `<div class=card><h3>Add matches</h3><div class=toolbar><select id=md><option>DECLARATION<option>FANCY</select> <select id=mf onchange="syncMatchInputs()"><option value=T20>T20<option value=ODI>ODI<option value=TEST>TEST</select> <span id=mc-wrap class=hidden><select id=mc title="Test type"><option value=INTERNATIONAL>INTERNATIONAL<option value=RANJI>RANJI</select></span> <label>Required slots <select id=mn>${[1,2,3,4,5,6,7,8,9,10].map(n=>`<option value=${n}>${n}</option>`).join("")}</select></label></div><textarea id=mt rows=6 placeholder="MATCH 101&#10;MATCH 102, ODI&#10;MATCH 103, TEST, RANJI"></textarea><div class=toolbar><button onclick="go('matches/bulk','POST',{day:$('#day').value,dept:$('#md').value,fmt:$('#mf').value,comp:$('#mc').value||'INTERNATIONAL',need:Number($('#mn').value),text:$('#mt').value})">Add matches</button> <input type=date id=me> <button class=g onclick="$('#me').value=''">Clear end date</button></div><small>Leave the end date empty to add to the selected start date only.</small></div><div class=card><table><tr><th>Code<th>Dept<th>Format<th>Slots<th>Status<th>Actions</tr>${s.matches.map(m=>`<tr><td>${esc(m.code)}<td>${m.dept}<td>${m.fmt}${m.comp?' ('+m.comp.toLowerCase()+')':''}<td><select id=need-${m.id}>${[1,2,3,4,5,6,7,8,9,10].map(n=>`<option value=${n} ${Number(m.need||2)==n?'selected':''}>${n}</option>`).join("")}</select> <button class=g onclick="updateMatchNeed(${m.id})">Update</button><td>${m.status}<td><button class=r onclick="if(confirm('Delete match?'))go('matches/${m.id}','DELETE')">Delete</button></tr>`).join("")}</table></div>`};
-async function updateMatchNeed(mid){const n=Number(document.getElementById('need-'+mid).value); if(!n||n<1)return alert('Required slots must be at least 1'); try{await api(`matches/${mid}/need`,'POST',{need:n}); show();}catch(e){alert(e.message)}}
-async function addPerson(mid,override=false){const b={match_id:mid,person_id:$('#s'+mid).value,override};
- try{await api("assign","POST",b);show()}catch(e){if(e.message.startsWith("OVERRIDE:")){if(confirm(e.message.slice(9).trim()+".\nAssign anyway (admin override)?")){try{await api("assign","POST",{...b,override:true});show()}catch(x){alert(x.message)}}}else alert(e.message)}}
-async function tr(d){const ids=[...document.querySelectorAll(".sel:checked")].map(x=>x.value);if(!ids.length)return alert("Select people first");
- try{let r=await api("transfer","POST",{person_ids:ids,new_dept:d});if(r.needs_confirm){if(!confirm(`Transfer ${ids.length} person(s) to ${d}?\n`+r.warnings.join("\n")))return;r=await api("transfer","POST",{person_ids:ids,new_dept:d,confirm:true})}show()}catch(e){alert(e.message)}}
-V.people=async()=>{const P=await api("people"); return `<div class=card><h3>Add person</h3><input id=pn placeholder=Name> <select id=pd><option>DECLARATION<option>FANCY</select> <button onclick="go('people','POST',{name:$('#pn').value,dept:$('#pd').value})">Add</button><h4>Bulk — one per line, optional ", FANCY"</h4><textarea id=pb rows=4></textarea><button onclick="go('people/bulk','POST',{text:$('#pb').value,dept:$('#pd').value})">Import list</button></div><div class=card><button class=g onclick="tr('FANCY')">Selected → FANCY</button> <button class=g onclick="tr('DECLARATION')">Selected → DECLARATION</button><table><tr><th><th>ID<th>Name<th>Dept<th>Active<th>Total<th>Last<th>Leave<th>Action</tr>${P.map(p=>`<tr><td><input type=checkbox class=sel value=${p.id}><td>${p.id}<td>${esc(p.name)}<td>${p.dept}<td>${p.active?"yes":"no"}<td>${p.total}<td>${p.last||"-"}<td>${(Array.isArray(p.leave)?p.leave:(p.leave||'').split(',')).filter(Boolean).map(d=>`${esc(d)} <button class=r title="Remove leave date" onclick="removeLeave('${p.id}','${esc(d)}')">×</button>`).join(' ')}<input type=date class=leave-date data-id="${p.id}"><button class=g onclick="saveLeave('${p.id}')">Add leave</button><td><button class=g onclick="go('people/${p.id}/active?active=${!p.active}')">${p.active?"Deactivate":"Activate"}</button> <button class=r title="Delete person" onclick="deletePerson('${p.id}')">🗑</button></tr>`).join("")}</table></div>`};
-V.close=async()=>{const d=$("#day").value,s=await api("schedule/"+d),o=(m,v)=>`<option ${m.status==v?"selected": ""}>${v}`,doneInput=m=>{const value=m.done?(m.fmt==="TEST"?m.done.slice(0,16):m.done.slice(11,16)):"";return `<input class=ct data-id=${m.id} type=${m.fmt==="TEST"?"datetime-local":"time"} value="${value}">`}; return `<div class=card><h3>Close day ${d} ${s.closed?"<b class=bad>(closed)</b>":""}</h3><table><tr><th>Match<th>Status<th>Completed at${s.matches.some(m=>m.fmt==="TEST")?" (date and time for Test matches)":" (HH:MM)"}</tr>${s.matches.map(m=>`<tr><td>${esc(m.code)} (${m.fmt})<td><select class=cs data-id=${m.id}>${o(m,"scheduled")}${o(m,"completed")}${o(m,"cancelled")}</select><td>${doneInput(m)}</tr>`).join("")}</table><button onclick=closeDay()>Close day</button> <button class=g onclick="go('reopen/'+$('#day').value)">Reopen (correction)</button></div>`};
-async function closeDay(){const ms=[...document.querySelectorAll(".cs")].map(s=>({id:+s.dataset.id,status:s.value,done:document.querySelector(`.ct[data-id="${s.dataset.id}"]`).value||null}));
- try{const r=await api("close/"+$("#day").value,"POST",{matches:ms});alert("Final release times:\n"+Object.entries(r.releases).map(e=>e.join(" → ")).join("\n")+"\n"+r.warnings.join("\n"));show()}catch(e){alert(e.message)}}
-V.hist=async()=>{const h=await api("history");return `<div class=card><h3>Transfers</h3><table>${h.transfers.map(t=>`<tr><td>${t.at}<td>${t.person_id}<td>${t.from_dept} → ${t.to_dept}<td>${t.admin}</tr>`).join("")}</table></div><div class=card><h3>Audit log</h3><table>${h.audit.map(a=>`<tr><td>${a.at}<td>${a.action}<td>${esc(a.detail)}</tr>`).join("")}</table></div>`};
+async function show(){
+  $$("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t===TAB));
+  if(TAB!=="sched")$("#daystate").innerHTML="";
+  try{$("#v").innerHTML=await V[TAB]();if(TAB==="matches")setTimeout(syncMatchInputs,0);if(TAB==="report")setTimeout(runReport,0);}
+  catch(e){$("#v").innerHTML=`<div class="card"><b class="bad">${esc(e.message)}</b></div>`;}
+}
 show();
-</script></body></html>
+</script>
+</body>
+</html>
