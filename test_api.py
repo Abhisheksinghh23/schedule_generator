@@ -48,11 +48,11 @@ def test_flow():
     assert team(D2, "M3") == ["a", "b"]            # a,b finished earlier -> priority
 
 def test_no_format_cap_and_department_rules():
-    post("matches/bulk", {"day": D3, "dept": "DECLARATION", "fmt": "ODI", "text": "X1\nX2"})
+    post("matches/bulk", {"day": D3, "dept": "DECLARATION", "fmt": "T20", "text": "X1\nX2"})
     post("generate/" + D3)
     ids = {m["code"]: m["id"] for m in sched(D3)}
-    assert team(D3, "X1") == team(D3, "X2") == ["a", "b"]      # default 2 per format: same pair can take both
-    post("matches/bulk", {"day": D3, "dept": "DECLARATION", "fmt": "ODI", "text": "X3"})
+    assert team(D3, "X1") == team(D3, "X2") == ["a", "b"]      # T20 cap 2: same pair can take both
+    post("matches/bulk", {"day": D3, "dept": "DECLARATION", "fmt": "T20", "text": "X3"})
     ids = {m["code"]: m["id"] for m in sched(D3)}
     r = post("assign", {"match_id": ids["X3"], "person_id": "P0001"})
     assert r.status_code == 409 and r.json()["detail"].startswith("OVERRIDE:")     # 3rd needs admin override
@@ -89,12 +89,12 @@ def test_test_rest_days_ranji_and_international():
     # Block everyone else so only the resting pair could fill the slots
     others = [r["id"] for r in cl.get("/api/people", headers=H).json() if r["name"] not in first]
     for pid in others: cl.post(f"/api/people/{pid}/active?active=false", headers=H)
-    day("2026-11-17", "R7", "T20"); post("generate/2026-11-17")      # final Ranji recovery day
-    assert team("2026-11-17", "R7") == []
-    day("2026-11-18", "R8", "T20"); post("generate/2026-11-18")      # free after 4 recovery days
-    assert sorted(team("2026-11-18", "R8")) == sorted(first)
-    # Manual assignment is rejected through the final recovery day.
-    ids = {m["code"]: m["id"] for m in sched("2026-11-17")}
+    day("2026-11-13", "R7", "T20"); post("generate/2026-11-13")      # final Ranji Test day
+    assert team("2026-11-13", "R7") == []
+    day("2026-11-14", "R8", "T20"); post("generate/2026-11-14")      # free the day after the Test ends
+    assert sorted(team("2026-11-14", "R8")) == sorted(first)
+    # Manual assignment is rejected through the final Test day.
+    ids = {m["code"]: m["id"] for m in sched("2026-11-13")}
     pid = [r["id"] for r in cl.get("/api/people", headers=H).json() if r["name"] == first[0]][0]
     cl.post(f"/api/people/{pid}/active?active=true", headers=H)
     r = post("assign", {"match_id": ids["R7"], "person_id": pid})
