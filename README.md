@@ -33,7 +33,9 @@ FastAPI + SQLite/PostgreSQL + single-page web UI (works on desktop, tablet, Andr
   enough eligible people remain, the slot is left unfilled and reported.
 - Admin override: manually adding a person past the maximum asks for confirmation ("Assign anyway?"); confirm to
   allow a second ODI or Test. Logged in the audit log as a limit override. The absolute ceiling is 2 per format
-  per day: a third is refused even with override (T20 stays at 2).
+  per day: a third is refused even with override (T20 stays at 2). A second Test is allowed only by manual
+  override and only if both Tests start the same day (their overlap is accepted); the person stays booked through the
+  later final day of either Test. Auto-generate never gives a person a second Test.
 - Test availability: Ranji Tests occupy 4 calendar days and International Tests 5, with no extra recovery days.
   The assigned people are unavailable through the final Test day and free the day after. Enter the actual completion
   date and time in Close Day when known; otherwise the schedule estimates the final day from the Test type.
