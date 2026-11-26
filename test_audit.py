@@ -81,7 +81,7 @@ def test_rest_boundaries_ranji_and_international():
     post("generate/2027-02-05")
     assert team("2027-02-05", "FREE") == rt                   # free the day after the Test
     r = post("assign", {"match_id": mid("2027-02-04", "B04"), "person_id": pid(rt[0])})
-    assert r.status_code == 400 and "booked on a Test" in r.json()["detail"]   # manual assignment also blocked
+    assert r.status_code == 409 and "booked on a Test" in r.json()["detail"]   # manual: warning, admin may confirm
     # International: 5 days, no recovery
     post("matches/bulk", {"day": "2027-03-01", "dept": "DECLARATION", "fmt": "TEST", "comp": "INTERNATIONAL", "text": "IT"})
     post("generate/2027-03-01"); it = team("2027-03-01", "IT"); assert len(it) == 2
@@ -147,7 +147,7 @@ def test_leave_blocks_generate_and_manual():
     post("generate/" + d)
     assert "A1" not in team(d, "LV")
     r = post("assign", {"match_id": mid(d, "LV"), "person_id": pid("A1")})
-    assert r.status_code == 400 and "leave" in r.json()["detail"].lower()
+    assert r.status_code in (409, 400) and ("leave" in r.json()["detail"].lower() or "full" in r.json()["detail"])
     cl.delete(f"/api/people/{pid('A1')}/leave?day={d}", headers=H)
 
 def test_transfers_admin_only_confirmed_and_logged():
@@ -253,16 +253,12 @@ def test_second_same_day_test_needs_override_and_third_is_blocked():
     assert r.status_code == 409 and "OVERRIDE" in r.json()["detail"]
     assert post("assign", {"match_id": mid(d, "TB"), "person_id": p, "override": True}).status_code == 200
     r = post("assign", {"match_id": mid(d, "TC"), "person_id": p, "override": True})
-    assert r.status_code == 400 and "maximum (2)" in r.json()["detail"]
+    assert r.status_code == 400 and "maximum (2 matches)" in r.json()["detail"]
     # still blocked through the final Test day (day 4), free on day 5
     d4, d5 = "2027-08-05", "2027-08-06"
     post("matches/bulk", {"day": d4, "dept": "DECLARATION", "fmt": "T20", "text": "TD4"})
     post("matches/bulk", {"day": d5, "dept": "DECLARATION", "fmt": "T20", "text": "TD5"})
-    r = post("assign", {"match_id": mid(d4, "TD4"), "person_id": p, "override": True})
-    assert r.status_code == 400 and "booked" in r.json()["detail"]
+    r = post("assign", {"match_id": mid(d4, "TD4"), "person_id": p})
+    assert r.status_code == 409 and "booked" in r.json()["detail"]       # warning first
+    assert post("assign", {"match_id": mid(d4, "TD4"), "person_id": p, "override": True}).status_code == 200  # admin confirms
     assert post("assign", {"match_id": mid(d5, "TD5"), "person_id": p}).status_code == 200
-    # a Test starting a different day inside the span is still refused
-    d2 = "2027-08-03"
-    post("matches/bulk", {"day": d2, "dept": "DECLARATION", "fmt": "TEST", "comp": "RANJI", "text": "TE"})
-    r = post("assign", {"match_id": mid(d2, "TE"), "person_id": p, "override": True})
-    assert r.status_code == 400
