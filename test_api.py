@@ -106,7 +106,7 @@ def test_test_rest_days_ranji_and_international():
     pid = [r["id"] for r in cl.get("/api/people", headers=H).json() if r["name"] == first[0]][0]
     cl.post(f"/api/people/{pid}/active?active=true", headers=H)
     r = post("assign", {"match_id": ids["R7"], "person_id": pid})
-    assert r.status_code == 400 and "resting" in r.json()["detail"]
+    assert r.status_code == 400 and "booked on a Test" in r.json()["detail"]
 
 
 def test_add_matches_with_end_date():
